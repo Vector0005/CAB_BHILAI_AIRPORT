@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Airport Travel Service</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .admin-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Login Section */
+        .login-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f5f7fa;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-container h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .login-btn:hover {
+            background: #2980b9;
+        }
+
+        .demo-credentials {
+            margin-top: 20px;
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .demo-credentials strong {
+            color: #2c3e50;
+        }
+
+        /* Admin Content */
+        .admin-content {
+            display: none;
+        }
+
+        .sidebar {
+            width: 250px;
+            background: #2c3e50;
+            color: white;
+            padding: 20px;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 30px;
+            text-align: center;
+            color: #ecf0f1;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 12px 15px;
+            margin: 5px 0;
+            background: #34495e;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: #3498db;
+        }
+
+        .logout-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 250px;
+            padding: 20px;
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .stat-card .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .page-content {
+            display: none;
+        }
+
+        .page-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <div class="login-container">
+                <h2>🔐 Admin Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="email">Email Address</label>
+                        <input type="email" id="email" name="email" required placeholder="admin@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required placeholder="Enter your password">
+                    </div>
+                    <button type="submit" class="login-btn">Login to Admin Panel</button>
+                </form>
+                <div class="demo-credentials">
+                    <p><strong>✅ Demo Credentials:</strong></p>
+                    <p><strong>Email:</strong> admin@raipurtaxi.com</p>
+                    <p><strong>Password:</strong> admin123</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Dashboard -->
+        <div id="adminContent" class="admin-content">
+            <div class="sidebar">
+                <h2>🛫 Admin Panel</h2>
+                <nav>
+                    <a href="#" class="nav-item active" data-page="dashboard">📊 Dashboard</a>
+                    <a href="#" class="nav-item" data-page="bookings">📋 Bookings</a>
+                    <a href="#" class="nav-item" data-page="drivers">👨‍💼 Drivers</a>
+                    <a href="#" class="nav-item" data-page="availability">📅 Availability</a>
+                    <a href="#" class="nav-item" data-page="users">👥 Users</a>
+                    <a href="#" class="nav-item" data-page="reports">📈 Reports</a>
+                </nav>
+                <button id="logoutBtn" class="logout-btn">🚪 Logout</button>
+            </div>
+
+            <div class="main-content">
+                <div class="header">
+                    <h1>Admin Dashboard</h1>
+                    <p>Welcome to Raipur Airport Travel Service Admin Panel</p>
+                </div>
+
+                <!-- Dashboard Content -->
+                <div id="dashboardPage" class="page-content active">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <h3>Total Bookings</h3>
+                            <div class="stat-number" id="totalBookings">12</div>
+                            <div style="color: #27ae60; font-size: 12px;">+5% from last week</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Pending Bookings</h3>
+                            <div class="stat-number" id="pendingBookings">3</div>
+                            <div style="color: #e74c3c; font-size: 12px;">Requires attention</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Today's Revenue</h3>
+                            <div class="stat-number" id="todayRevenue">₹8,500</div>
+                            <div style="color: #27ae60; font-size: 12px;">+12% from yesterday</div>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Active Drivers</h3>
+                            <div class="stat-number" id="activeDrivers">5</div>
+                            <div style="color: #27ae60; font-size: 12px;">All available</div>
+                        </div>
+                    </div>
+
+                    <div class="success-message">
+                        <strong>✅ Admin Panel Successfully Connected!</strong><br>
+                        You can now manage bookings, drivers, and availability through this dashboard.
+                    </div>
+                </div>
+
+                <!-- Bookings Page -->
+                <div id="bookingsPage" class="page-content">
+                    <div class="header">
+                        <h1>Booking Management</h1>
+                        <p>View and manage all customer bookings</p>
+                    </div>
+                    <div class="success-message">
+                        <strong>📋 Booking Features:</strong><br>
+                        • View all bookings with customer details<br>
+                        • Update booking status (Pending → Confirmed → Completed)<br>
+                        • Search bookings by customer name or phone<br>
+                        • Cancel bookings when needed<br>
+                        • View detailed booking information
+                    </div>
+                </div>
+
+                <!-- Drivers Page -->
+                <div id="driversPage" class="page-content">
+                    <div class="header">
+                        <h1>Driver Management</h1>
+                        <p>Manage driver availability and assignments</p>
+                    </div>
+                    <div class="success-message">
+                        <strong>👨‍💼 Driver Features:</strong><br>
+                        • View all registered drivers<br>
+                        • Toggle driver availability status<br>
+                        • Assign drivers to bookings<br>
+                        • Update driver information<br>
+                        • Track driver performance
+                    </div>
+                </div>
+
+                <!-- Availability Page -->
+                <div id="availabilityPage" class="page-content">
+                    <div class="header">
+                        <h1>Availability Management</h1>
+                        <p>Control time slot availability and pricing</p>
+                    </div>
+                    <div class="success-message">
+                        <strong>📅 Availability Features:</strong><br>
+                        • Set availability for dates and time slots<br>
+                        • Manage morning (6AM-12PM) and evening (12PM-10PM) slots<br>
+                        • Update pricing for different services<br>
+                        • Block dates for maintenance or holidays<br>
+                        • View booking calendar
+                    </div>
+                </div>
+
+                <!-- Users Page -->
+                <div id="usersPage" class="page-content">
+                    <div class="header">
+                        <h1>User Management</h1>
+                        <p>Manage registered users and roles</p>
+                    </div>
+                    <div class="success-message">
+                        <strong>👥 User Features:</strong><br>
+                        • View all registered customers<br>
+                        • See user roles (Admin, Customer, Driver)<br>
+                        • Manage user accounts<br>
+                        • View user booking history<br>
+                        • Update user information
+                    </div>
+                </div>
+
+                <!-- Reports Page -->
+                <div id="reportsPage" class="page-content">
+                    <div class="header">
+                        <h1>Reports & Analytics</h1>
+                        <p>Detailed analytics and business insights</p>
+                    </div>
+                    <div class="success-message">
+                        <strong>📈 Report Features:</strong><br>
+                        • Revenue reports and trends<br>
+                        • Booking analytics and patterns<br>
+                        • Customer behavior insights<br>
+                        • Driver performance metrics<br>
+                        • Export data for accounting
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simple Admin Panel JavaScript
+        class SimpleAdminPanel {
+            constructor() {
+                this.currentUser = null;
+                this.init();
+            }
+
+            init() {
+                this.checkAuth();
+                this.bindEvents();
+            }
+
+            checkAuth() {
+                const token = localStorage.getItem('adminToken');
+                if (!token) {
+                    this.showLogin();
+                    return;
+                }
+                this.currentUser = { token };
+                this.showAdminContent();
+            }
+
+            showLogin() {
+                document.getElementById('loginSection').style.display = 'flex';
+                document.getElementById('adminContent').style.display = 'none';
+            }
+
+            showAdminContent() {
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('adminContent').style.display = 'block';
+            }
+
+            bindEvents() {
+                // Login form
+                document.getElementById('loginForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleLogin();
+                });
+
+                // Navigation
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const page = item.dataset.page;
+                        this.navigateToPage(page);
+                    });
+                });
+
+                // Logout
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    this.handleLogout();
+                });
+            }
+
+            async handleLogin() {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+
+                // Demo login - in real app, this would call your API
+                if (email === 'admin@raipurtaxi.com' && password === 'admin123') {
+                    localStorage.setItem('adminToken', 'demo-token-' + Date.now());
+                    this.currentUser = { email, role: 'admin' };
+                    this.showAdminContent();
+                    this.showMessage('Login successful! Welcome to Admin Panel.', 'success');
+                } else {
+                    this.showMessage('Invalid credentials. Use: admin@raipurtaxi.com / admin123', 'error');
+                }
+            }
+
+            handleLogout() {
+                localStorage.removeItem('adminToken');
+                this.currentUser = null;
+                this.showLogin();
+                this.showMessage('Logged out successfully.', 'info');
+            }
+
+            navigateToPage(page) {
+                // Update navigation
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`[data-page="${page}"]`).classList.add('active');
+
+                // Hide all pages
+                document.querySelectorAll('.page-content').forEach(content => {
+                    content.style.display = 'none';
+                });
+
+                // Show selected page
+                document.getElementById(`${page}Page`).style.display = 'block';
+            }
+
+            showMessage(message, type) {
+                // Create and show message
+                const messageDiv = document.createElement('div');
+                messageDiv.className = type === 'error' ? 'error-message' : 'success-message';
+                messageDiv.innerHTML = `<strong>${type.toUpperCase()}:</strong> ${message}`;
+                
+                // Add to main content
+                const mainContent = document.querySelector('.main-content');
+                mainContent.insertBefore(messageDiv, mainContent.firstChild);
+                
+                // Remove after 5 seconds
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 5000);
+            }
+        }
+
+        // Initialize when DOM is loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new SimpleAdminPanel();
+        });
+    </script>
+</body>
+</html>

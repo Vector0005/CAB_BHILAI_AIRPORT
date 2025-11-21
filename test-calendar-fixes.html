@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Fixes Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .test-pass { background-color: #d4edda; border-color: #c3e6cb; }
+        .test-fail { background-color: #f8d7da; border-color: #f5c6cb; }
+        .test-result { font-weight: bold; margin-top: 10px; }
+        .calendar-container { margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Calendar Functionality Test Report</h1>
+    
+    <div class="test-section" id="test1">
+        <h3>Test 1: Month Navigation Duplication</h3>
+        <p>Testing that month navigation buttons don't create duplicate event listeners</p>
+        <div class="test-result" id="test1-result">Testing...</div>
+    </div>
+    
+    <div class="test-section" id="test2">
+        <h3>Test 2: "Both Available" Text Removal</h3>
+        <p>Verifying that "Both Available" text no longer appears in calendar tiles</p>
+        <div class="test-result" id="test2-result">Testing...</div>
+    </div>
+    
+    <div class="test-section" id="test3">
+        <h3>Test 3: Calendar Navigation Functionality</h3>
+        <p>Testing that month navigation works smoothly without issues</p>
+        <div class="test-result" id="test3-result">Testing...</div>
+    </div>
+    
+    <div class="test-section" id="test4">
+        <h3>Test 4: Backend Integration</h3>
+        <p>Verifying that backend API calls work correctly with calendar</p>
+        <div class="test-result" id="test4-result">Testing...</div>
+    </div>
+
+    <script>
+        // Test 1: Check for duplicate event listeners
+        function testNavigationDuplication() {
+            const result = document.getElementById('test1-result');
+            
+            // Check if the navigation buttons have the data-listener attribute
+            const prevBtn = document.getElementById('prevMonth');
+            const nextBtn = document.getElementById('nextMonth');
+            
+            if (prevBtn && nextBtn) {
+                const prevHasListener = prevBtn.hasAttribute('data-listener');
+                const nextHasListener = nextBtn.hasAttribute('data-listener');
+                
+                if (prevHasListener && nextHasListener) {
+                    result.parentElement.classList.add('test-pass');
+                    result.innerHTML = '✅ PASS: Navigation buttons have proper event listener protection';
+                } else {
+                    result.parentElement.classList.add('test-fail');
+                    result.innerHTML = '❌ FAIL: Navigation buttons missing event listener protection';
+                }
+            } else {
+                result.parentElement.classList.add('test-fail');
+                result.innerHTML = '❌ FAIL: Navigation buttons not found';
+            }
+        }
+
+        // Test 2: Check for "Both Available" text removal
+        function testBothAvailableText() {
+            const result = document.getElementById('test2-result');
+            
+            // This test would need to be run after calendar is generated
+            // For now, we'll check the code logic
+            fetch('script-backend.js')
+                .then(response => response.text())
+                .then(code => {
+                    // Check if the code has the fixed logic (no "Both Available" text)
+                    const hasAvailableLogic = code.includes('statusText = \'\'');
+                    const hasBothAvailable = code.includes('Both Available');
+                    
+                    if (hasAvailableLogic && !hasBothAvailable) {
+                        result.parentElement.classList.add('test-pass');
+                        result.innerHTML = '✅ PASS: Code shows "Both Available" text has been removed';
+                    } else {
+                        result.parentElement.classList.add('test-fail');
+                        result.innerHTML = '❌ FAIL: "Both Available" text may still be present';
+                    }
+                })
+                .catch(error => {
+                    result.parentElement.classList.add('test-fail');
+                    result.innerHTML = '❌ FAIL: Could not load script file';
+                });
+        }
+
+        // Test 3: Test navigation functionality
+        function testNavigationFunctionality() {
+            const result = document.getElementById('test3-result');
+            
+            // This would need the actual calendar to be loaded
+            // For now, check if navigation setup is called only once
+            fetch('script-backend.js')
+                .then(response => response.text())
+                .then(code => {
+                    const setupCalls = (code.match(/setupMonthNavigation\(\)/g) || []).length;
+                    const setupInInit = code.includes('setupMonthNavigation(); // Set up navigation only once');
+                    
+                    if (setupCalls === 1 && setupInInit) {
+                        result.parentElement.classList.add('test-pass');
+                        result.innerHTML = '✅ PASS: Navigation setup is properly controlled';
+                    } else {
+                        result.parentElement.classList.add('test-fail');
+                        result.innerHTML = '❌ FAIL: Navigation setup may have duplication issues';
+                    }
+                })
+                .catch(error => {
+                    result.parentElement.classList.add('test-fail');
+                    result.innerHTML = '❌ FAIL: Could not load script file';
+                });
+        }
+
+        // Test 4: Test backend integration
+        function testBackendIntegration() {
+            const result = document.getElementById('test4-result');
+            
+            fetch('http://localhost:3001/api/availability')
+                .then(response => {
+                    if (response.ok) {
+                        result.parentElement.classList.add('test-pass');
+                        result.innerHTML = '✅ PASS: Backend API is accessible and responding';
+                    } else {
+                        result.parentElement.classList.add('test-fail');
+                        result.innerHTML = '❌ FAIL: Backend API returned error: ' + response.status;
+                    }
+                })
+                .catch(error => {
+                    result.parentElement.classList.add('test-fail');
+                    result.innerHTML = '❌ FAIL: Backend API not accessible: ' + error.message;
+                });
+        }
+
+        // Run all tests
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testNavigationDuplication();
+                testBothAvailableText();
+                testNavigationFunctionality();
+                testBackendIntegration();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

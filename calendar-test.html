@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Test</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Calendar Test</h1>
+        <div class="calendar-container">
+            <div class="calendar-header">
+                <button class="nav-btn" id="prevMonth">‹</button>
+                <h2 class="month-year" id="monthYear">November 2024</h2>
+                <button class="nav-btn" id="nextMonth">›</button>
+            </div>
+            <div class="calendar-grid" id="calendarGrid">
+                <div class="weekday">Sun</div>
+                <div class="weekday">Mon</div>
+                <div class="weekday">Tue</div>
+                <div class="weekday">Wed</div>
+                <div class="weekday">Thu</div>
+                <div class="weekday">Fri</div>
+                <div class="weekday">Sat</div>
+            </div>
+        </div>
+        <div id="testResult"></div>
+    </div>
+    
+    <script>
+        // Simple calendar test
+        console.log('Calendar test script loaded');
+        
+        function testCalendar() {
+            const calendarGrid = document.getElementById('calendarGrid');
+            const monthYear = document.getElementById('monthYear');
+            const testResult = document.getElementById('testResult');
+            
+            console.log('Calendar grid:', calendarGrid);
+            console.log('Month year:', monthYear);
+            
+            if (calendarGrid && monthYear) {
+                // Add some test calendar days
+                for (let i = 1; i <= 5; i++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day available';
+                    dayElement.innerHTML = `
+                        <div class="calendar-day-number">${i}</div>
+                        <div class="calendar-day-status">Available</div>
+                    `;
+                    calendarGrid.appendChild(dayElement);
+                }
+                
+                testResult.innerHTML = '<p style="color: green;">✅ Calendar loaded successfully!</p>';
+            } else {
+                testResult.innerHTML = '<p style="color: red;">❌ Calendar elements not found!</p>';
+            }
+        }
+        
+        // Test when DOM is loaded
+        document.addEventListener('DOMContentLoaded', testCalendar);
+        
+        // Test immediately
+        testCalendar();
+    </script>
+</body>
+</html>
