@@ -5,6 +5,7 @@ class AdminPanel {
         this.bookings = [];
         this.drivers = [];
         this.availability = [];
+        this.promos = [];
         this.currentPage = 'dashboard';
         
         this.init();
@@ -49,14 +50,22 @@ class AdminPanel {
 
         // Booking actions
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('view-booking')) {
-                this.viewBooking(e.target.dataset.id);
-            } else if (e.target.classList.contains('edit-booking')) {
-                this.editBooking(e.target.dataset.id);
-            } else if (e.target.classList.contains('cancel-booking')) {
-                this.cancelBooking(e.target.dataset.id);
-            } else if (e.target.classList.contains('confirm-booking')) {
-                this.confirmBooking(e.target.dataset.id);
+            const btnView = e.target.closest('.view-booking');
+            const btnEdit = e.target.closest('.edit-booking');
+            const btnCancel = e.target.closest('.cancel-booking');
+            const btnConfirm = e.target.closest('.confirm-booking');
+            if (btnView) {
+                e.preventDefault();
+                this.viewBooking(btnView.dataset.id);
+            } else if (btnEdit) {
+                e.preventDefault();
+                this.editBooking(btnEdit.dataset.id);
+            } else if (btnCancel) {
+                e.preventDefault();
+                this.cancelBooking(btnCancel.dataset.id);
+            } else if (btnConfirm) {
+                e.preventDefault();
+                this.confirmBooking(btnConfirm.dataset.id);
             }
         });
 
@@ -112,6 +121,9 @@ class AdminPanel {
                 await this.deleteVehicle(id);
             }
         });
+
+        
+
 
 
         // Modal events
@@ -208,7 +220,7 @@ class AdminPanel {
 
     async loadBookings() {
         try {
-            const response = await fetch('http://localhost:3001/api/bookings');
+            const response = await fetch('http://localhost:3001/api/admin/bookings?limit=200');
             const data = await response.json();
             const rows = Array.isArray(data) ? data : (data.bookings || []);
             this.bookings = rows.map(b => ({
@@ -365,7 +377,7 @@ class AdminPanel {
         }
     }
 
-    navigateToPage(page) {
+    async navigateToPage(page) {
         this.currentPage = page;
         
         // Update navigation
@@ -397,6 +409,7 @@ class AdminPanel {
                 this.loadVehicles();
                 this.renderVehiclesTable();
                 break;
+            
         }
     }
 
@@ -419,7 +432,6 @@ class AdminPanel {
                 <tr>
                     <td>${b.id}</td>
                     <td>${b.name || b.customerName || ''}</td>
-                    <td>${b.phone || b.phoneNumber || ''}</td>
                     <td>${dateText}</td>
                     <td>${timeText}</td>
                     <td>${(b.tripType || '').replace('_',' ')}</td>
@@ -430,13 +442,12 @@ class AdminPanel {
                         </span>
                     </td>
                     <td>₹${Number(b.price || b.amount || 0)}</td>
-                    <td>${created ? new Date(created).toLocaleDateString() : ''}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary view-booking" data-id="${b.id}" title="View booking for ${dateText} ${timeText}">View</button>
-                            <button class="btn btn-sm btn-warning edit-booking" data-id="${b.id}" title="Edit booking for ${dateText} ${timeText}">Edit</button>
-                            ${status === 'pending' ? `<button class="btn btn-sm btn-success confirm-booking" data-id="${b.id}" title="Confirm booking for ${dateText} ${timeText}">Confirm</button>` : ''}
-                            ${status !== 'cancelled' ? `<button class="btn btn-sm btn-danger cancel-booking" data-id="${b.id}">Cancel</button>` : ''}
+                            <button class="btn btn-sm btn-primary view-booking" data-id="${b.id}" title="View booking for ${dateText} ${timeText}" onclick="adminPanel && adminPanel.viewBooking('${b.id}')">View</button>
+                            <button class="btn btn-sm btn-warning edit-booking" data-id="${b.id}" title="Edit booking for ${dateText} ${timeText}" onclick="adminPanel && adminPanel.editBooking('${b.id}')">Edit</button>
+                            ${status === 'pending' ? `<button class="btn btn-sm btn-success confirm-booking" data-id="${b.id}" title="Confirm booking for ${dateText} ${timeText}" onclick="adminPanel && adminPanel.confirmBooking('${b.id}')">Confirm</button>` : ''}
+                            ${status !== 'cancelled' ? `<button class="btn btn-sm btn-danger cancel-booking" data-id="${b.id}" onclick="adminPanel && adminPanel.cancelBooking('${b.id}')">Cancel</button>` : ''}
                         </div>
                     </td>
                 </tr>`
@@ -494,6 +505,9 @@ class AdminPanel {
             this.vehicles = [];
         }
     }
+
+    
+
 
 
     async addVehicle(name, rate) {
@@ -625,20 +639,33 @@ class AdminPanel {
     }
 
     viewBooking(bookingId) {
-        const booking = this.bookings.find(b => b.id === bookingId);
-        if (!booking) return;
+        const booking = this.bookings.find(b => String(b.id) === String(bookingId));
+        if (!booking) { this.showNotification('Booking not found', 'error'); return; }
 
-        alert(`Booking Details:\n\n` +
-              `ID: ${booking.id}\n` +
-              `Customer: ${booking.customerName}\n` +
-              `Phone: ${booking.phoneNumber}\n` +
-              `Date: ${new Date(booking.date).toLocaleDateString()}\n` +
-              `Time: ${booking.timeSlot}\n` +
-              `Trip: ${booking.tripType}\n` +
-              `Location: ${booking.pickupLocation}\n` +
-              `Amount: ₹${booking.amount}\n` +
-              `Status: ${booking.status}\n` +
-              `Created: ${new Date(booking.createdAt).toLocaleDateString()}`);
+        const dateStr = booking.date || booking.pickup_date || '';
+        const dateText = dateStr ? new Date(dateStr).toLocaleDateString() : '';
+        const timeText = booking.timeSlot || booking.pickup_time || '';
+        const tripText = (booking.tripType || booking.trip_type || '').replace('_',' ');
+        const createdStr = booking.createdAt || booking.created_at || '';
+        const createdText = createdStr ? new Date(createdStr).toLocaleDateString() : '';
+        const amountNum = Number(booking.amount || booking.price || 0);
+
+        const body = document.getElementById('bookingDetailsBody');
+        const modal = document.getElementById('bookingDetailsModal');
+        if (!body || !modal) return;
+        body.innerHTML = `
+            <div><strong>ID:</strong> ${booking.id}</div>
+            <div><strong>Customer:</strong> ${booking.customerName || booking.name || ''}</div>
+            <div><strong>Phone:</strong> ${booking.phoneNumber || booking.phone || ''}</div>
+            <div><strong>Date:</strong> ${dateText}</div>
+            <div><strong>Time:</strong> ${timeText}</div>
+            <div><strong>Trip:</strong> ${tripText}</div>
+            <div><strong>Location:</strong> ${booking.pickupLocation || booking.pickup_location || ''}</div>
+            <div><strong>Amount:</strong> ₹${amountNum}</div>
+            <div><strong>Status:</strong> ${(booking.status || '')}</div>
+            <div><strong>Created:</strong> ${createdText}</div>
+        `;
+        modal.style.display = 'flex';
     }
 
     editBooking(bookingId) {
@@ -653,7 +680,7 @@ class AdminPanel {
 
     async updateBookingStatus(bookingId, status) {
         try {
-            const response = await fetch(`http://localhost:3001/api/bookings/${bookingId}/status`, {
+            const response = await fetch(`http://localhost:3001/api/admin/bookings/${bookingId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: (status || '').toUpperCase() })
@@ -661,8 +688,12 @@ class AdminPanel {
 
             if (response.ok) {
                 this.showNotification('Booking status updated successfully', 'success');
+                const target = this.bookings.find(b => String(b.id) === String(bookingId));
+                if (target) { target.status = (status || '').toLowerCase(); }
+                this.renderBookingsTable();
                 await this.loadBookings();
                 this.renderBookingsTable();
+                try { await this.loadDashboardData(); } catch(_) {}
             } else {
                 this.showNotification('Failed to update booking status', 'error');
             }
@@ -776,7 +807,6 @@ class AdminPanel {
                 <tr>
                     <td>${booking.id}</td>
                     <td>${booking.customerName}</td>
-                    <td>${booking.phoneNumber}</td>
                     <td>${new Date(booking.date).toLocaleDateString()}</td>
                     <td>${booking.timeSlot}</td>
                     <td>${booking.tripType}</td>
@@ -787,7 +817,6 @@ class AdminPanel {
                         </span>
                     </td>
                     <td>₹${booking.amount}</td>
-                    <td>${new Date(booking.createdAt).toLocaleDateString()}</td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-primary view-booking" data-id="${booking.id}">

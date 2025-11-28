@@ -87,6 +87,35 @@ router.patch('/:date', async (req, res) => {
     const date = new Date(req.params.date)
     const { morningAvailable, eveningAvailable, maxBookings, currentBookings } = req.body
     const client3 = getSupabaseClient(true)
+    
+    // When making a slot available, cancel any existing bookings for that slot
+    if (morningAvailable === true || eveningAvailable === true) {
+      const searchDate = new Date(date);
+      searchDate.setHours(0, 0, 0, 0);
+      const nextDate = new Date(searchDate);
+      nextDate.setDate(nextDate.getDate() + 1);
+      
+      // Cancel bookings for the morning slot if it's being made available
+      if (morningAvailable === true) {
+        await client3.from('bookings')
+          .update({ status: 'CANCELLED', payment_status: 'REFUNDED' })
+          .gte('pickup_date', searchDate.toISOString())
+          .lt('pickup_date', nextDate.toISOString())
+          .eq('pickup_time', 'morning')
+          .neq('status', 'COMPLETED');
+      }
+      
+      // Cancel bookings for the evening slot if it's being made available
+      if (eveningAvailable === true) {
+        await client3.from('bookings')
+          .update({ status: 'CANCELLED', payment_status: 'REFUNDED' })
+          .gte('pickup_date', searchDate.toISOString())
+          .lt('pickup_date', nextDate.toISOString())
+          .eq('pickup_time', 'evening')
+          .neq('status', 'COMPLETED');
+      }
+    }
+    
     if (client3) {
       const updateData = {}
       if (morningAvailable !== undefined) updateData.morning_available = morningAvailable

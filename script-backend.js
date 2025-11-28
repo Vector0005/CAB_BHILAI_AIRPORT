@@ -60,7 +60,8 @@ class AirportBookingSystem {
         try {
             const resp = await fetch(`${this.API_BASE_URL}/vehicles`);
             const data = await resp.json();
-            this.vehicles = data.vehicles || [];
+            // Filter to only show active vehicles
+            this.vehicles = (data.vehicles || []).filter(v => v.active === true);
             const sel = document.getElementById('vehicleSelect');
             const rateEl = document.getElementById('vehicleRateDisplay');
             const btn = document.getElementById('vehicleDropdown');
@@ -181,7 +182,8 @@ class AirportBookingSystem {
             price: this.calculateAmount(),
             vehicleId: this.selectedVehicle ? this.selectedVehicle.id : null,
             vehicleName: this.selectedVehicle ? this.selectedVehicle.name : null,
-            vehicleRate: this.selectedVehicle ? this.selectedVehicle.rate : null
+            vehicleRate: this.selectedVehicle ? this.selectedVehicle.rate : null,
+            
         };
     }
 
@@ -510,10 +512,6 @@ class AirportBookingSystem {
         this.bookingData.date = dateStr;
         this.updateSelectedDateDisplay();
         this.updateTimeSlotAvailability();
-        const params = new URLSearchParams(window.location.search);
-        params.set('date', dateStr);
-        const newUrl = `${window.location.pathname}?${params.toString()}`;
-        history.replaceState(null, '', newUrl);
     }
 
     updateSelectedDateDisplay() {
@@ -543,10 +541,28 @@ class AirportBookingSystem {
         const dateStr = this.formatDateLocal(this.selectedDate);
         const availability = this.availabilityData[dateStr] || { morning: true, evening: true };
 
+        // Check if selected date is today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDate = new Date(this.selectedDate);
+        selectedDate.setHours(0, 0, 0, 0);
+        const isToday = selectedDate.getTime() === today.getTime();
+
+        // Get current time
+        const now = new Date();
+        const currentHour = now.getHours();
+
         // Update morning tab
         const morningTab = document.querySelector('[data-time="morning"]');
         if (morningTab) {
-            if (!availability.morning) {
+            let morningAvailable = availability.morning;
+            
+            // If it's today and past 12 PM, disable morning
+            if (isToday && currentHour >= 12) {
+                morningAvailable = false;
+            }
+            
+            if (!morningAvailable) {
                 morningTab.classList.add('disabled');
                 morningTab.style.pointerEvents = 'none';
             } else {
@@ -558,7 +574,14 @@ class AirportBookingSystem {
         // Update evening tab
         const eveningTab = document.querySelector('[data-time="evening"]');
         if (eveningTab) {
-            if (!availability.evening) {
+            let eveningAvailable = availability.evening;
+            
+            // If it's today and past 6 PM, disable evening
+            if (isToday && currentHour >= 18) {
+                eveningAvailable = false;
+            }
+            
+            if (!eveningAvailable) {
                 eveningTab.classList.add('disabled');
                 eveningTab.style.pointerEvents = 'none';
             } else {
@@ -569,7 +592,10 @@ class AirportBookingSystem {
 
         // If fully booked, disable booking button
         const bookButton = document.querySelector('.book-ride-btn');
-        if (!availability.morning && !availability.evening) {
+        const finalMorningAvailable = isToday && currentHour >= 12 ? false : availability.morning;
+        const finalEveningAvailable = isToday && currentHour >= 18 ? false : availability.evening;
+        
+        if (!finalMorningAvailable && !finalEveningAvailable) {
             bookButton.disabled = true;
             bookButton.textContent = 'Fully Booked';
         } else {
@@ -631,6 +657,8 @@ class AirportBookingSystem {
             detectBtn.disabled = false;
         }
     }
+
+    
 }
 
 // Initialize the booking system when DOM is loaded
@@ -640,3 +668,4 @@ document.addEventListener('DOMContentLoaded', () => {
         console.error('Failed to initialize booking system:', error);
     });
 });
+window.addEventListener('error', function(e){ try { var el=document.getElementById('notice'); if (el) { el.className='notice error'; el.textContent='Error: '+String(e.message||'unknown') } } catch(_){} });

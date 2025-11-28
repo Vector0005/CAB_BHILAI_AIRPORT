@@ -115,3 +115,24 @@ CREATE POLICY "allow read vehicles" ON public.vehicles FOR SELECT TO public USIN
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_id text;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_name text;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_rate numeric;
+-- Promo codes
+create table if not exists public.promos (
+  id text primary key,
+  code text unique not null,
+  discount_percent numeric default 0,
+  discount_flat numeric default 0,
+  max_uses int not null default 0,
+  used_count int not null default 0,
+  active boolean not null default true,
+  valid_from timestamptz,
+  valid_to timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+ALTER TABLE public.promos ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "allow read promos" ON public.promos;
+CREATE POLICY "allow read promos" ON public.promos FOR SELECT TO public USING (active = true);
+
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS promo_code text;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS promo_discount_amount numeric;

@@ -4,8 +4,42 @@ class Calendar {
         this.currentDate = new Date();
         this.selectedDate = null;
         this.selectedDateAvailability = null;
-        this.availabilityData = this.generateMockAvailability();
+        this.availabilityData = {};
         this.init();
+    }
+
+    getApiBaseUrl() {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        return isLocal ? 'http://localhost:3001' : window.location.origin;
+    }
+
+    async loadAvailability() {
+        try {
+            const start = new Date();
+            const end = new Date();
+            end.setDate(end.getDate() + 90);
+            const params = new URLSearchParams({
+                startDate: start.toISOString(),
+                endDate: end.toISOString()
+            });
+            const res = await fetch(`${this.getApiBaseUrl()}/api/availability?${params.toString()}`);
+            if (res.ok) {
+                const data = await res.json();
+                const mapped = {};
+                for (const row of data) {
+                    const d = new Date(row.date || row.date_time || row.pickup_date);
+                    const key = this.formatDateKey(d);
+                    const mAvail = row.morning_available ?? row.morningAvailable ?? true;
+                    const eAvail = row.evening_available ?? row.eveningAvailable ?? true;
+                    if (mAvail && eAvail) mapped[key] = 'available';
+                    else if (!mAvail && !eAvail) mapped[key] = 'booked';
+                    else mapped[key] = { type: 'partial', morningAvailable: mAvail, eveningAvailable: eAvail };
+                }
+                this.availabilityData = mapped;
+                return;
+            }
+        } catch (_) {}
+        this.availabilityData = this.generateMockAvailability();
     }
 
     generateMockAvailability() {
@@ -44,7 +78,8 @@ class Calendar {
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
     }
 
-    init() {
+    async init() {
+        await this.loadAvailability();
         this.renderCalendar();
         this.bindEvents();
     }

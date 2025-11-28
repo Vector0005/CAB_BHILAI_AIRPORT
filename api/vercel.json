@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "functions": {
+    "src/index.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/index.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}

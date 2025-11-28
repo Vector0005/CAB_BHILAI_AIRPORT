@@ -102,6 +102,7 @@ router.post('/', [
     price,
     notes
   } = req.body;
+  const promoCodeRaw = req.body.promoCode || req.body.promo_code || null;
   const vehicleId = req.body.vehicleId || req.body.vehicle_id || null;
   const vehicleName = req.body.vehicleName || req.body.vehicle_name || null;
   const vehicleRate = req.body.vehicleRate || req.body.vehicle_rate || null;
@@ -187,6 +188,36 @@ router.post('/', [
     status: 'PENDING',
     payment_status: 'PENDING'
   }
+    if (promoCodeRaw) {
+      const code = String(promoCodeRaw).trim().toUpperCase()
+      const clientPromo = getSupabaseClient(true)
+      if (clientPromo) {
+        const nowIso = new Date().toISOString()
+        const { data: promos, error: promoErr } = await clientPromo
+          .from('promos')
+          .select('*')
+          .eq('code', code)
+          .eq('active', true)
+          .lte('valid_from', nowIso)
+          .gte('valid_to', nowIso)
+          .limit(1)
+        if (promoErr) throw promoErr
+        const promo = promos && promos.length ? promos[0] : null
+        if (!promo) {
+          return res.status(400).json({ error: 'Invalid or expired promo code' })
+        }
+        if (promo.max_uses > 0 && promo.used_count >= promo.max_uses) {
+          return res.status(400).json({ error: 'Promo usage limit reached' })
+        }
+        const base = Number(price || 0)
+        const percent = Number(promo.discount_percent || 0)
+        const flat = Number(promo.discount_flat || 0)
+        const discount = Math.min(base, Math.max(0, percent > 0 ? (base * percent / 100) : flat))
+        insertPayload.promo_code = code
+        insertPayload.promo_discount_amount = discount
+        await clientPromo.from('promos').update({ used_count: promo.used_count + 1 }).eq('id', promo.id)
+      }
+    }
     let booking
     const client2 = getSupabaseClient(true)
     if (client2) {

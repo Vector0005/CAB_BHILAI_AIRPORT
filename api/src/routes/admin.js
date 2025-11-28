@@ -5,11 +5,12 @@ import getSupabaseClient from '../services/supabaseClient.js'
 
 const router = express.Router();
 const prisma = new PrismaClient();
-const supabase = getSupabaseClient(true)
+// Use per-request supabase client to avoid stale/null clients
 
 // Get dashboard statistics
 router.get('/dashboard', async (req, res) => {
   try {
+    const client = getSupabaseClient(true)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -17,15 +18,15 @@ router.get('/dashboard', async (req, res) => {
 
     // Get statistics
     let totalBookings, todayBookings, pendingBookings, completedBookings, totalRevenue, todayRevenue, totalUsers, totalDrivers
-    if (supabase) {
-      const tb = await supabase.from('bookings').select('*', { count: 'exact', head: true }); totalBookings = tb.count || 0
-      const tdy = await supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('pickup_date', today.toISOString()).lt('pickup_date', tomorrow.toISOString()); todayBookings = tdy.count || 0
-      const pend = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'PENDING'); pendingBookings = pend.count || 0
-      const comp = await supabase.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED'); completedBookings = comp.count || 0
-      const tp = await supabase.from('bookings').select('price').eq('payment_status', 'PAID'); totalRevenue = (tp.data || []).reduce((s, r) => s + Number(r.price || 0), 0)
-      const tr = await supabase.from('bookings').select('price').gte('pickup_date', today.toISOString()).lt('pickup_date', tomorrow.toISOString()).eq('payment_status', 'PAID'); todayRevenue = (tr.data || []).reduce((s, r) => s + Number(r.price || 0), 0)
-      const tu = await supabase.from('users').select('*', { count: 'exact', head: true }); totalUsers = tu.count || 0
-      const td = await supabase.from('drivers').select('*', { count: 'exact', head: true }); totalDrivers = td.count || 0
+    if (client) {
+      const tb = await client.from('bookings').select('*', { count: 'exact', head: true }); totalBookings = tb.count || 0
+      const tdy = await client.from('bookings').select('*', { count: 'exact', head: true }).gte('pickup_date', today.toISOString()).lt('pickup_date', tomorrow.toISOString()); todayBookings = tdy.count || 0
+      const pend = await client.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'PENDING'); pendingBookings = pend.count || 0
+      const comp = await client.from('bookings').select('*', { count: 'exact', head: true }).eq('status', 'COMPLETED'); completedBookings = comp.count || 0
+      const tp = await client.from('bookings').select('price').eq('payment_status', 'PAID'); totalRevenue = (tp.data || []).reduce((s, r) => s + Number(r.price || 0), 0)
+      const tr = await client.from('bookings').select('price').gte('pickup_date', today.toISOString()).lt('pickup_date', tomorrow.toISOString()).eq('payment_status', 'PAID'); todayRevenue = (tr.data || []).reduce((s, r) => s + Number(r.price || 0), 0)
+      const tu = await client.from('users').select('*', { count: 'exact', head: true }); totalUsers = tu.count || 0
+      const td = await client.from('drivers').select('*', { count: 'exact', head: true }); totalDrivers = td.count || 0
     } else {
       totalBookings = await prisma.booking.count()
       todayBookings = await prisma.booking.count({ where: { pickupDate: { gte: today, lt: tomorrow } } })
@@ -41,8 +42,8 @@ router.get('/dashboard', async (req, res) => {
 
     // Get recent bookings
     let recentBookings
-    if (supabase) {
-      const r = await supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(10)
+    if (client) {
+      const r = await client.from('bookings').select('*').order('created_at', { ascending: false }).limit(10)
       recentBookings = r.data || []
     } else {
       recentBookings = await prisma.booking.findMany({ take: 10, orderBy: { createdAt: 'desc' } })
@@ -67,8 +68,8 @@ router.get('/dashboard', async (req, res) => {
     const bookingTrends = await Promise.all(last7Days.map(async (day) => {
       const date = new Date(day.date)
       const nextDate = new Date(date); nextDate.setDate(nextDate.getDate() + 1)
-      if (supabase) {
-        const { count } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).gte('pickup_date', date.toISOString()).lt('pickup_date', nextDate.toISOString())
+      if (client) {
+        const { count } = await client.from('bookings').select('*', { count: 'exact', head: true }).gte('pickup_date', date.toISOString()).lt('pickup_date', nextDate.toISOString())
         return { date: day.date, bookings: count || 0 }
       } else {
         const count = await prisma.booking.count({ where: { pickupDate: { gte: date, lt: nextDate } } })
@@ -99,9 +100,10 @@ router.get('/dashboard', async (req, res) => {
 // Get all bookings with filters
 router.get('/bookings', async (req, res) => {
   try {
+    const client = getSupabaseClient(true)
     const { status, date, page = 1, limit = 20, search } = req.query;
-    if (supabase) {
-      let query = supabase.from('bookings').select('*', { count: 'exact' })
+    if (client) {
+      let query = client.from('bookings').select('*', { count: 'exact' })
       if (status) query = query.eq('status', status)
       if (date) {
         const startDate = new Date(date); startDate.setHours(0,0,0,0)
@@ -138,6 +140,7 @@ router.patch('/bookings/:id/assign-driver', [
   body('driverId').isString().withMessage('Driver ID required')
 ], async (req, res) => {
   try {
+    const client = getSupabaseClient(true)
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -146,13 +149,13 @@ router.patch('/bookings/:id/assign-driver', [
     const { driverId } = req.body;
     const bookingId = req.params.id;
 
-    const { data: driverRows } = await supabase.from('drivers').select('*').eq('id', driverId).limit(1)
+    const { data: driverRows } = await client.from('drivers').select('*').eq('id', driverId).limit(1)
     if (!driverRows || !driverRows.length) return res.status(404).json({ error: 'Driver not found' })
     const driver = driverRows[0]
     if (driver.status !== 'AVAILABLE') return res.status(400).json({ error: 'Driver is not available' })
-    const { data: bookingRows, error } = await supabase.from('bookings').update({ driver_id: driverId, status: 'CONFIRMED' }).eq('id', bookingId).select('*')
+    const { data: bookingRows, error } = await client.from('bookings').update({ driver_id: driverId, status: 'CONFIRMED' }).eq('id', bookingId).select('*')
     if (error) throw error
-    await supabase.from('drivers').update({ status: 'BUSY' }).eq('id', driverId)
+    await client.from('drivers').update({ status: 'BUSY' }).eq('id', driverId)
     res.json({ message: 'Driver assigned successfully', booking: bookingRows[0] })
   } catch (error) {
     console.error('Driver assignment error:', error);
@@ -165,6 +168,7 @@ router.patch('/bookings/:id/status', [
   body('status').isIn(['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED']).withMessage('Invalid status')
 ], async (req, res) => {
   try {
+    const client = getSupabaseClient(true)
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
@@ -172,11 +176,11 @@ router.patch('/bookings/:id/status', [
 
     const { status } = req.body;
     const bookingId = req.params.id;
-    const { data, error } = await supabase.from('bookings').update({ status }).eq('id', bookingId).select('*')
+    const { data, error } = await client.from('bookings').update({ status }).eq('id', bookingId).select('*')
     if (error) throw error
     const booking = data[0]
     if (status === 'COMPLETED' && booking?.driver_id) {
-      await supabase.from('drivers').update({ status: 'AVAILABLE' }).eq('id', booking.driver_id)
+      await client.from('drivers').update({ status: 'AVAILABLE' }).eq('id', booking.driver_id)
     }
     res.json({ message: 'Booking status updated', booking })
   } catch (error) {
