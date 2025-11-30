@@ -1,5 +1,5 @@
 {
-  "name": "cab-bhilai-airport-admin",
+  "name": "cab-airport-raipur",
   "compatibility_date": "2025-11-30",
   "main": "worker.js",
   "send_metrics": false
