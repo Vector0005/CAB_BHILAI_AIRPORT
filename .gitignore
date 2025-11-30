@@ -13,3 +13,14 @@ Thumbs.db
 coverage/
 *.sqlite
 *.db
+/*
+!/Airport Raipur cab service/
+!/Airport Raipur cab service/**
+#/Airport Raipur cab service explicit ignores
+/Airport Raipur cab service/**/node_modules/
+/Airport Raipur cab service/**/.env
+/Airport Raipur cab service/**/.env.*
+/Airport Raipur cab service/**/dist/
+/Airport Raipur cab service/**/build/
+/Airport Raipur cab service/**/*.sqlite
+/Airport Raipur cab service/**/*.db
