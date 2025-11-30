@@ -84,6 +84,11 @@ class AdminPanel {
         document.addEventListener('click', async (e) => {
             const action = e.target.getAttribute('data-action');
             const date = e.target.getAttribute('data-date');
+            if (date) {
+                const d = new Date(date); d.setHours(0,0,0,0);
+                const today = new Date(); today.setHours(0,0,0,0);
+                if (d < today) { this.showNotification('Cannot change past date availability', 'error'); return; }
+            }
             if (e.target.classList.contains('edit-availability')) {
                 await this.editAvailability(date);
             } else if (action === 'toggle-morning' && date) {
@@ -584,7 +589,14 @@ class AdminPanel {
     renderAvailabilityTable() {
         const tbody = document.getElementById('availabilityTableBody');
         if (tbody) {
-            tbody.innerHTML = this.availability.map(a => `
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const rows = (this.availability || []).filter(a => {
+                const d = new Date(a.date);
+                d.setHours(0,0,0,0);
+                return d >= today;
+            });
+            tbody.innerHTML = rows.map(a => `
                 <tr>
                     <td>${new Date(a.date).toLocaleDateString()}</td>
                     <td>
