@@ -75,6 +75,8 @@ class AdminPanel {
                 this.editDriver(e.target.dataset.id);
             } else if (e.target.classList.contains('toggle-driver')) {
                 this.toggleDriverStatus(e.target.dataset.id);
+            } else if (e.target.classList.contains('delete-driver')) {
+                this.deleteDriver(e.target.dataset.id);
             }
         });
 
@@ -478,12 +480,9 @@ class AdminPanel {
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary edit-driver" data-id="${driver.id}">
-                                Edit
-                            </button>
-                            <button class="btn btn-sm btn-warning toggle-driver" data-id="${driver.id}">
-                                ${driver.isAvailable ? 'Mark Unavailable' : 'Mark Available'}
-                            </button>
+                            <button class="btn btn-sm btn-primary edit-driver" data-id="${driver.id}">Edit</button>
+                            <button class="btn btn-sm btn-warning toggle-driver" data-id="${driver.id}">${driver.isAvailable ? 'Mark Unavailable' : 'Mark Available'}</button>
+                            <button class="btn btn-sm btn-danger delete-driver" data-id="${driver.id}">Delete</button>
                         </div>
                     </td>
                 </tr>
@@ -769,6 +768,31 @@ class AdminPanel {
         } catch (err) {
             console.error('Driver status error:', err);
             this.showNotification('Error updating driver status', 'error');
+        }
+    }
+
+    async deleteDriver(driverId) {
+        if (!confirm('Are you sure you want to delete this driver?')) return;
+        try {
+            const headers = {};
+            if (this.currentUser && this.currentUser.token) {
+                headers['Authorization'] = `Bearer ${this.currentUser.token}`;
+            }
+            const response = await fetch(`http://localhost:3001/api/drivers/${driverId}`, {
+                method: 'DELETE',
+                headers
+            });
+            if (response.ok) {
+                this.showNotification('Driver deleted successfully', 'success');
+                await this.loadDrivers();
+                this.renderDriversTable();
+            } else {
+                let msg = 'Failed to delete driver';
+                try { const data = await response.json(); if (data && data.error) msg = data.error; } catch (_) {}
+                this.showNotification(msg, 'error');
+            }
+        } catch (error) {
+            this.showNotification('Error deleting driver', 'error');
         }
     }
 
