@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raipur Airport ↔ Bhilai Travel Service</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg class="logo-icon" viewBox="0 0 60 40" fill="none">
+                    <path d="M10 20 L20 10 L30 15 L35 10 L40 15 L35 20 L40 25 L35 30 L30 25 L20 30 Z" fill="#0EA5E9"/>
+                    <circle cx="15" cy="20" r="3" fill="#1E40AF"/>
+                    <rect x="45" y="15" width="12" height="10" rx="2" fill="#1E40AF"/>
+                    <circle cx="51" cy="20" r="2" fill="#0EA5E9"/>
+                </svg>
+                <h1 class="title">Raipur Airport ↔ Bhilai Travel Service</h1>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <div class="booking-section">
+                <!-- Calendar Section -->
+                <div class="calendar-container">
+                    <div class="calendar-header">
+                        <button class="nav-btn" id="prevMonth">‹</button>
+                        <h2 class="month-year" id="monthYear">November 2024</h2>
+                        <button class="nav-btn" id="nextMonth">›</button>
+                    </div>
+                    
+                    <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="Choose a pickup date">
+                        <div class="weekday">Sun</div>
+                        <div class="weekday">Mon</div>
+                        <div class="weekday">Tue</div>
+                        <div class="weekday">Wed</div>
+                        <div class="weekday">Thu</div>
+                        <div class="weekday">Fri</div>
+                        <div class="weekday">Sat</div>
+                    </div>
+
+                    <div class="availability-legend">
+                        <div class="legend-item">
+                            <div class="legend-color available"></div>
+                            <span>Both slots available</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color partial"></div>
+                            <span>One slot booked</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color booked"></div>
+                            <span>Fully booked</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Booking Form -->
+                <div class="booking-form-container">
+                    <h3 class="form-title">Book Your Ride</h3>
+                    <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
+                    
+                    <form class="booking-form" id="bookingForm">
+                        <div class="form-group">
+                            <label>Selected Date</label>
+                            <div class="selected-date-display" id="selectedDateDisplay">
+                                <span class="no-date-selected">Please select a date from the calendar</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="name">Name</label>
+                            <input type="text" id="name" name="name" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <input type="tel" id="phone" name="phone" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Pickup Time</label>
+                            <div class="time-tabs">
+                                <button type="button" class="time-tab active" data-time="morning">
+                                    Morning
+                                    <span class="time-range">6:00 AM - 12:00 PM</span>
+                                </button>
+                                <button type="button" class="time-tab" data-time="evening">
+                                    Evening
+                                    <span class="time-range">12:00 PM - 10:00 PM</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Trip Direction</label>
+                            <div class="trip-type-buttons">
+                                <label class="radio-button">
+                                    <input type="radio" name="tripType" value="home-to-airport" checked>
+                                    <span class="radio-label">Home to Airport</span>
+                                </label>
+                                <label class="radio-button">
+                                    <input type="radio" name="tripType" value="airport-to-home">
+                                    <span class="radio-label">Airport to Home</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Select Vehicle</label>
+                            <div class="vehicle-select" id="vehicleSelectControl">
+                                <button type="button" id="vehicleDropdown" class="dropdown-button" aria-haspopup="listbox" aria-expanded="false">Select vehicle</button>
+                                <div id="vehicleMenu" class="dropdown-menu hidden" role="listbox" aria-labelledby="vehicleDropdown"></div>
+                            </div>
+                            <select id="vehicleSelect" class="native-select" style="display:none;"></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Rate</label>
+                            <div id="vehicleRateDisplay">₹0</div>
+                        </div>
+
+                        
+
+
+                        <div class="form-group">
+                            <label for="location">Pickup Location</label>
+                            <div class="location-input-container">
+                                <input type="text" id="location" name="location" placeholder="Paste Google Maps link or type address" required>
+                                <button type="button" class="location-detect-btn" id="detectLocation">
+                                    <svg class="location-icon" viewBox="0 0 24 24" fill="none">
+                                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/>
+                                    </svg>
+                                    Detect Location
+                                </button>
+                            </div>
+                            <div class="location-help">
+                                💡 Tip: You can paste a Google Maps link or type your address
+                            </div>
+                        </div>
+
+                        <button type="submit" class="book-ride-btn">
+                            Book Ride
+                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none">
+                                <path d="M5 12h14m-7-7l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Hidden Admin Access Element -->
+    <div id="adminAccess" class="admin-access-hidden" style="position: fixed; top: 0; left: 0; width: 10px; height: 10px; cursor: pointer; z-index: 9999;" title="Admin Access (Triple-click or Ctrl+Shift+A)"></div>
+    
+    <script src="script-backend.js"></script>
+    <script>
+        // Hidden admin access functionality
+        let adminClickCount = 0;
+        let adminClickTimer;
+        
+        // Method 1: Triple-click on hidden area
+        document.getElementById('adminAccess').addEventListener('click', function() {
+            adminClickCount++;
+            clearTimeout(adminClickTimer);
+            
+            if (adminClickCount >= 3) {
+                window.open('/admin.html', '_blank');
+                adminClickCount = 0;
+            }
+            
+            adminClickTimer = setTimeout(() => {
+                adminClickCount = 0;
+            }, 1000);
+        });
+        
+        // Method 2: Keyboard shortcut Ctrl+Shift+A
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+                e.preventDefault();
+                window.open('/admin.html', '_blank');
+            }
+        });
+        
+        // Method 3: Konami code for fun (for developers who know it)
+        let konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+        let konamiIndex = 0;
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === konamiCode[konamiIndex]) {
+                konamiIndex++;
+                if (konamiIndex === konamiCode.length) {
+                    window.open('/admin.html', '_blank');
+                    konamiIndex = 0;
+                }
+            } else {
+                konamiIndex = 0;
+            }
+        });
+    </script>
+</body>
+</html>
