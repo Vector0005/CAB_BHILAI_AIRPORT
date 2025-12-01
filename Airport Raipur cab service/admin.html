@@ -7,12 +7,11 @@
     <script>
         // API Configuration
         const API_CONFIG = {
-            // Use environment-based API URL
-            baseUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-                ? 'http://localhost:3001' 
-                : window.location.origin, // Same domain for deployed version
-            
-            // Fallback to Supabase directly if backend is not available
+            baseUrl: (function(){
+                if (window.location.protocol === 'file:') return 'http://localhost:3001';
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') return 'http://localhost:3001';
+                return window.location.origin;
+            })(),
             supabaseUrl: 'https://vkorkcyltikzfounowqh.supabase.co',
             supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrb3JrY3lsdGlremZvdW5vd3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MzE4MTEsImV4cCI6MjA3OTIwNzgxMX0.C6DYciv1Nmsnyby5PO1fMFGigOZ57O1kOhQbKyzm_PM'
         };
@@ -20,6 +19,14 @@
         // Helper function to get API URL
         function getApiUrl(endpoint) {
             return API_CONFIG.baseUrl + endpoint;
+        }
+        async function ensureBackend(){
+            try{
+                const r=await fetch(API_CONFIG.baseUrl+'/api/health',{cache:'no-store'});
+                if(!r.ok) throw new Error('x');
+            }catch(_){
+                API_CONFIG.baseUrl='http://localhost:3001';
+            }
         }
     </script>
     <style>
@@ -1080,11 +1087,12 @@
 
     
     <script>
-        // Load admin script dynamically based on environment
-        const adminScript = document.createElement('script');
-        adminScript.src = getApiUrl('/api/admin.js?v=stable-latest');
-        adminScript.defer = true;
-        document.head.appendChild(adminScript);
+        (async function(){
+            try{ await ensureBackend(); }catch(_){}
+            const s=document.createElement('script');
+            s.src=getApiUrl('/api/admin.js?v=stable-latest');
+            s.defer=true; document.head.appendChild(s);
+        })();
     </script>
     <script>
         // Consolidated DOMContentLoaded event listener
@@ -1163,8 +1171,30 @@
                     if(!r.ok) throw new Error('HTTP '+r.status);
                     const d=await r.json();
                     const rows=Array.isArray(d)?d:(d.bookings||[]);
-                    if (window.adminPanel) {
-                        window.adminPanel.bookings = rows.map(function(b){ return {
+                    if (window.adminPanel) { window.adminPanel.bookings = rows.map(function(b){ return {
+                        id: b.id,
+                        customerName: b.name||b.customerName||'',
+                        phoneNumber: b.phone||b.phoneNumber||'',
+                        date: b.pickupDate||b.pickup_date||'',
+                        timeSlot: b.pickupTime||b.pickup_time||b.timeSlot||'',
+                        tripType: (b.tripType||b.trip_type||''),
+                        pickupLocation: b.pickupLocation||b.pickup_location||'',
+                        amount: Number(b.price||b.amount||0),
+                        status: (b.status||'').toLowerCase(),
+                        createdAt: b.createdAt||b.created_at||''
+                    }; }); window.adminPanel.updateDashboard(); if (typeof window.adminPanel.renderBookingsTable==='function') { window.adminPanel.renderBookingsTable(); } }
+                    window.allBookings = rows;
+                    if (Array.isArray(rows)) { bookingData = rows.slice(); filterAndDisplayData(); }
+                    applyBookingFilter();
+                }catch(e){
+                    try{
+                        const su=((typeof API_CONFIG!=='undefined')&&API_CONFIG.supabaseUrl)?API_CONFIG.supabaseUrl:'';
+                        const sk=((typeof API_CONFIG!=='undefined')&&API_CONFIG.supabaseAnonKey)?API_CONFIG.supabaseAnonKey:'';
+                        if(!su||!sk) return;
+                        const p=new URLSearchParams({ select: '*' });
+                        const r2=await fetch(su+'/rest/v1/bookings?'+p.toString(),{ headers:{ apikey: sk, Authorization: 'Bearer '+sk } });
+                        if(!r2.ok) return; const rows=await r2.json();
+                        if (window.adminPanel) { window.adminPanel.bookings = rows.map(function(b){ return {
                             id: b.id,
                             customerName: b.name||b.customerName||'',
                             phoneNumber: b.phone||b.phoneNumber||'',
@@ -1175,23 +1205,10 @@
                             amount: Number(b.price||b.amount||0),
                             status: (b.status||'').toLowerCase(),
                             createdAt: b.createdAt||b.created_at||''
-                        }; });
-                        window.adminPanel.updateDashboard();
-                        if (typeof window.adminPanel.renderBookingsTable==='function') { window.adminPanel.renderBookingsTable(); }
-                    }
-                    
-                    // Store bookings data globally for filtering
-                    window.allBookings = rows;
-
-                    // Also feed Data Export table pipeline
-                    if (Array.isArray(rows)) {
-                        bookingData = rows.slice();
-                        filterAndDisplayData();
-                    }
-                    
-                    // Apply current filter
-                    applyBookingFilter();
-                }catch(e){}
+                        }; }); if (typeof window.adminPanel.renderBookingsTable==='function') { window.adminPanel.renderBookingsTable(); } }
+                        window.allBookings = Array.isArray(rows)?rows:[]; bookingData = window.allBookings.slice(); filterAndDisplayData(); applyBookingFilter();
+                    }catch(_){ }
+                }
             }
 
             function applyBookingFilter() {
@@ -1244,22 +1261,43 @@
                     const tbody=document.getElementById('vehiclesTableBody');
                     if(!tbody) return;
                     tbody.innerHTML=rows.map(function(v){
-                        const isActive = v.active;
-                        const toggleButtonClass = isActive ? 'btn-disable' : 'btn-enable';
-                        const toggleButtonText = isActive ? '⏸️ Disable' : '✅ Enable';
-                        
+                        const isActive=v.active; const tCls=isActive?'btn-disable':'btn-enable'; const tTxt=isActive?'⏸️ Disable':'✅ Enable';
                         return '<tr>'+
                         '<td>'+v.name+'</td>'+
                         '<td>₹'+Number(v.rate)+'</td>'+
                         '<td><span class="status-badge status-'+(isActive?'available':'unavailable')+'">'+(isActive?'Active':'Inactive')+'</span></td>'+
                         '<td><div class="action-buttons">'+
                         '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rate</button>'+
-                        '<button class="btn btn-sm '+toggleButtonClass+' toggle-vehicle" data-id="'+v.id+'" data-active="'+v.active+'">'+toggleButtonText+'</button>'+
+                        '<button class="btn btn-sm '+tCls+' toggle-vehicle" data-id="'+v.id+'" data-active="'+v.active+'">'+tTxt+'</button>'+
                         '<button class="btn btn-sm btn-danger delete-vehicle" data-id="'+v.id+'">Delete</button>'+
                         '</div></td>'+
                         '</tr>'
                     }).join('');
-                }catch(e){}
+                }catch(e){
+                    try{
+                        const su=((typeof API_CONFIG!=='undefined')&&API_CONFIG.supabaseUrl)?API_CONFIG.supabaseUrl:'';
+                        const sk=((typeof API_CONFIG!=='undefined')&&API_CONFIG.supabaseAnonKey)?API_CONFIG.supabaseAnonKey:'';
+                        if(!su||!sk) return;
+                        const p=new URLSearchParams({ select: '*' });
+                        const r2=await fetch(su+'/rest/v1/vehicles?'+p.toString(),{ headers:{ apikey: sk, Authorization: 'Bearer '+sk } });
+                        if(!r2.ok) return; const rows=await r2.json();
+                        if (window.adminPanel) { window.adminPanel.vehicles = Array.isArray(rows)?rows:[]; }
+                        const tbody=document.getElementById('vehiclesTableBody'); if(!tbody) return;
+                        tbody.innerHTML=(Array.isArray(rows)?rows:[]).map(function(v){
+                            const isActive=v.active; const tCls=isActive?'btn-disable':'btn-enable'; const tTxt=isActive?'⏸️ Disable':'✅ Enable';
+                            return '<tr>'+
+                            '<td>'+v.name+'</td>'+
+                            '<td>₹'+Number(v.rate)+'</td>'+
+                            '<td><span class="status-badge status-'+(isActive?'available':'unavailable')+'">'+(isActive?'Active':'Inactive')+'</span></td>'+
+                            '<td><div class="action-buttons">'+
+                            '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rate</button>'+
+                            '<button class="btn btn-sm '+tCls+' toggle-vehicle" data-id="'+v.id+'" data-active="'+v.active+'">'+tTxt+'</button>'+
+                            '<button class="btn btn-sm btn-danger delete-vehicle" data-id="'+v.id+'">Delete</button>'+
+                            '</div></td>'+
+                            '</tr>'
+                        }).join('');
+                    }catch(_){ }
+                }
             }
             async function fillDrivers(){
                 try{
@@ -1294,7 +1332,43 @@
                         '</div></td>'+
                         '</tr>'
                     }).join('');
-                }catch(e){}
+                }catch(e){
+                    try{
+                        const su=((typeof API_CONFIG!=='undefined')&&API_CONFIG.supabaseUrl)?API_CONFIG.supabaseUrl:'';
+                        const sk=((typeof API_CONFIG!=='undefined')&&API_CONFIG.supabaseAnonKey)?API_CONFIG.supabaseAnonKey:'';
+                        if(!su||!sk) return;
+                        const p=new URLSearchParams({ select: '*' });
+                        const r2=await fetch(su+'/rest/v1/drivers?'+p.toString(),{ headers:{ apikey: sk, Authorization: 'Bearer '+sk } });
+                        if(!r2.ok) return; const rows=await r2.json();
+                        if (window.adminPanel) { window.adminPanel.drivers = (Array.isArray(rows)?rows:[]).map(function(dr){ return {
+                            id: dr.id,
+                            name: dr.name,
+                            email: dr.email,
+                            phone: dr.phone,
+                            vehicleNumber: dr.vehicle_no||dr.vehicleNo||dr.vehicle,
+                            vehicleType: dr.vehicle||'',
+                            isAvailable: ((dr.status||'').toUpperCase()==='AVAILABLE')
+                        }; }); }
+                        const tbody=document.getElementById('driversTableBody'); if(!tbody) return;
+                        const list=Array.isArray(rows)?rows:[];
+                        tbody.innerHTML=list.map(function(dr){
+                            return '<tr>'+
+                            '<td>'+dr.id+'</td>'+
+                            '<td>'+dr.name+'</td>'+
+                            '<td>'+dr.email+'</td>'+
+                            '<td>'+dr.phone+'</td>'+
+                            '<td>'+((dr.vehicle_no||dr.vehicleNo||dr.vehicle)||'')+'</td>'+
+                            '<td>'+((dr.vehicle)||'')+'</td>'+
+                            '<td><span class="status-badge status-'+((dr.status||'').toUpperCase()==='AVAILABLE'?'available':'unavailable')+'">'+(((dr.status||'').toUpperCase()==='AVAILABLE')?'Available':'Unavailable')+'</span></td>'+
+                            '<td><div class="action-buttons">'+
+                            '<button class="btn btn-sm btn-primary edit-driver" data-id="'+dr.id+'">Edit</button>'+
+                            '<button class="btn btn-sm btn-warning toggle-driver" data-id="'+dr.id+'">Toggle</button>'+
+                            '<button class="btn btn-sm btn-danger delete-driver" data-id="'+dr.id+'">Delete</button>'+
+                            '</div></td>'+
+                            '</tr>'
+                        }).join('');
+                    }catch(_){ }
+                }
             }
             async function fillAvailability(){
                 try{
