@@ -7,10 +7,8 @@
     <script>
         // API Configuration
         const API_CONFIG = {
-            // Use environment-based API URL
-            baseUrl: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-                ? 'http://localhost:3001' 
-                : window.location.origin, // Same domain for deployed version
+            // Always use same-origin for API calls
+            baseUrl: window.location.origin,
             
             // Fallback to Supabase directly if backend is not available
             supabaseUrl: 'https://vkorkcyltikzfounowqh.supabase.co',
