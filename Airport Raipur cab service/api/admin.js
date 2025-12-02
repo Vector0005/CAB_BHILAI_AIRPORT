@@ -7,6 +7,7 @@ class AdminPanel {
         this.availability = [];
         this.promos = [];
         this.currentPage = 'dashboard';
+        this.API_BASE_URL = window.location.origin + '/api';
         
         this.init();
     }
@@ -159,7 +160,7 @@ class AdminPanel {
         const password = document.getElementById('password').value;
 
         try {
-            const response = await fetch('http://localhost:3001/api/users/login', {
+            const response = await fetch(`${this.API_BASE_URL}/users/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -194,7 +195,7 @@ class AdminPanel {
     async loadDashboardData() {
         try {
             // Load dashboard statistics from API
-            const response = await fetch('http://localhost:3001/api/admin/dashboard');
+            const response = await fetch(`${this.API_BASE_URL}/admin/dashboard`);
             if (response.ok) {
                 const data = await response.json();
                 try {
@@ -217,17 +218,14 @@ class AdminPanel {
             this.updateDashboard();
         } catch (error) {
             console.error('Error loading dashboard data:', error);
-            // Do not interrupt; show empty dashboard gracefully
-            this.bookings = this.bookings || [];
-            this.drivers = this.drivers || [];
-            this.availability = this.availability || [];
+            this.showNotification('Error loading dashboard data', 'error');
             this.updateDashboard();
         }
     }
 
     async loadBookings() {
         try {
-            const response = await fetch('http://localhost:3001/api/admin/bookings?limit=200');
+            const response = await fetch(`${this.API_BASE_URL}/admin/bookings?limit=200`);
             const data = await response.json();
             const rows = Array.isArray(data) ? data : (data.bookings || []);
             this.bookings = rows.map(b => ({
@@ -244,13 +242,13 @@ class AdminPanel {
             }));
         } catch (error) {
             console.error('Error loading bookings:', error);
-            this.bookings = [];
+            this.bookings = this.bookings || [];
         }
     }
 
     async loadDrivers() {
         try {
-            const response = await fetch('http://localhost:3001/api/drivers');
+            const response = await fetch(`${this.API_BASE_URL}/drivers`);
             const data = await response.json();
             const rows = Array.isArray(data) ? data : (data.drivers || []);
             this.drivers = rows.map(d => ({
@@ -264,13 +262,13 @@ class AdminPanel {
             }));
         } catch (error) {
             console.error('Error loading drivers:', error);
-            this.drivers = [];
+            this.drivers = this.drivers || [];
         }
     }
 
     async loadAvailability() {
         try {
-            const response = await fetch('http://localhost:3001/api/availability');
+            const response = await fetch(`${this.API_BASE_URL}/availability`);
             const data = await response.json();
             const rows = Array.isArray(data) ? data : (data.availability || []);
             this.availability = rows.map(a => ({
@@ -280,7 +278,7 @@ class AdminPanel {
             }));
         } catch (error) {
             console.error('Error loading availability:', error);
-            this.availability = [];
+            this.availability = this.availability || [];
         }
     }
 
@@ -502,7 +500,7 @@ class AdminPanel {
 
     async loadVehicles() {
         try {
-            const resp = await fetch('http://localhost:3001/api/vehicles');
+            const resp = await fetch(`${this.API_BASE_URL}/vehicles`);
             const data = await resp.json();
             this.vehicles = data.vehicles || [];
         } catch (err) {
@@ -516,7 +514,7 @@ class AdminPanel {
 
     async addVehicle(name, rate) {
         try {
-            const resp = await fetch('http://localhost:3001/api/vehicles', {
+            const resp = await fetch(`${this.API_BASE_URL}/vehicles`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, rate })
@@ -535,7 +533,7 @@ class AdminPanel {
 
     async updateVehicle(id, update) {
         try {
-            const resp = await fetch(`http://localhost:3001/api/vehicles/${id}`, {
+            const resp = await fetch(`${this.API_BASE_URL}/vehicles/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(update)
@@ -554,7 +552,7 @@ class AdminPanel {
 
     async deleteVehicle(id) {
         try {
-            const resp = await fetch(`http://localhost:3001/api/vehicles/${id}`, { method: 'DELETE' });
+            const resp = await fetch(`${this.API_BASE_URL}/vehicles/${id}`, { method: 'DELETE' });
             if (resp.ok) {
                 await this.loadVehicles();
                 this.renderVehiclesTable();
@@ -623,7 +621,7 @@ class AdminPanel {
     async updateAvailability(date, update) {
         try {
             const iso = new Date(date).toISOString();
-            const resp = await fetch(`http://localhost:3001/api/availability/${iso}`, {
+            const resp = await fetch(`${this.API_BASE_URL}/availability/${iso}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(update)
@@ -691,7 +689,7 @@ class AdminPanel {
 
     async updateBookingStatus(bookingId, status) {
         try {
-            const response = await fetch(`http://localhost:3001/api/admin/bookings/${bookingId}/status`, {
+            const response = await fetch(`${this.API_BASE_URL}/admin/bookings/${bookingId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: (status || '').toUpperCase() })
@@ -738,7 +736,7 @@ class AdminPanel {
 
     async updateDriver(driverId, updates) {
         try {
-            const response = await fetch(`http://localhost:3001/api/drivers/${driverId}`, {
+            const response = await fetch(`${this.API_BASE_URL}/drivers/${driverId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json'
@@ -765,7 +763,7 @@ class AdminPanel {
 
         const nextStatus = driver.isAvailable ? 'OFFLINE' : 'AVAILABLE';
         try {
-            const response = await fetch(`http://localhost:3001/api/drivers/${driverId}/status`, {
+            const response = await fetch(`${this.API_BASE_URL}/drivers/${driverId}/status`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ status: nextStatus })
@@ -790,7 +788,7 @@ class AdminPanel {
             if (this.currentUser && this.currentUser.token) {
                 headers['Authorization'] = `Bearer ${this.currentUser.token}`;
             }
-            const response = await fetch(`http://localhost:3001/api/drivers/${driverId}`, {
+            const response = await fetch(`${this.API_BASE_URL}/drivers/${driverId}`, {
                 method: 'DELETE',
                 headers
             });

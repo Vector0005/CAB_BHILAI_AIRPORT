@@ -46,7 +46,10 @@ defaultDirectives["connect-src"] = [
   process.env.FRONTEND_URL || "http://localhost:5173",
   process.env.SUPABASE_URL || "https://*.supabase.co"
 ];
-app.use(helmet({ contentSecurityPolicy: { directives: defaultDirectives } }));
+app.use(helmet({ 
+  contentSecurityPolicy: { directives: defaultDirectives },
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 app.use(cors({
   origin: ['http://localhost:3000', 'http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081', 'https://traeqkfjen3z.vercel.app', process.env.FRONTEND_URL],
   credentials: true
@@ -67,6 +70,23 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging
 app.use(morgan('combined'));
+
+// Serve static booking site from project root
+app.use(express.static(join(__dirname, '../../'), { index: 'index.html' }));
+
+// Explicit root route for booking site
+app.get('/', (req, res) => {
+  const indexPath = join(__dirname, '../../index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      console.error('Booking site index.html not found:', err);
+      res.status(404).json({
+        error: 'Frontend not found',
+        message: 'Ensure index.html exists in the project root'
+      });
+    }
+  });
+});
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -90,6 +110,20 @@ app.use('/api/promos', promosRoutes);
 
 // Admin redirect - serve admin.html for /admin route
 app.get('/admin', (req, res) => {
+  const adminPath = join(__dirname, '../../admin.html');
+  res.sendFile(adminPath, (err) => {
+    if (err) {
+      console.error('Admin file not found:', err);
+      res.status(404).json({ 
+        error: 'Admin panel not found',
+        message: 'Please ensure admin.html exists in the root directory'
+      });
+    }
+  });
+});
+
+// Serve admin.html directly for compatibility with /admin.html path
+app.get('/admin.html', (req, res) => {
   const adminPath = join(__dirname, '../../admin.html');
   res.sendFile(adminPath, (err) => {
     if (err) {

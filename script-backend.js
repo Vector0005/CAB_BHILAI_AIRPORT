@@ -1,7 +1,7 @@
 // Enhanced Frontend Script with Backend API Integration
 class AirportBookingSystem {
     constructor() {
-        this.API_BASE_URL = 'http://localhost:3001/api';
+        this.API_BASE_URL = window.location.origin + '/api';
         this.currentDate = new Date();
         this.selectedDate = null;
         this.availabilityData = {};
