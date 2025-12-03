@@ -1,7 +1,7 @@
 // Enhanced Frontend Script with Backend API Integration
 class AirportBookingSystem {
     constructor() {
-        this.API_BASE_URL = 'http://localhost:3001/api';
+        this.API_BASE_URL = `${window.location.origin}/api`;
         this.currentDate = new Date();
         this.selectedDate = null;
         this.availabilityData = {};
@@ -17,8 +17,16 @@ class AirportBookingSystem {
         this.init();
     }
 
+    formatDateLocal(date) {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
     async init() {
         this.setupEventListeners();
+        await this.loadVehicles();
         this.generateCalendar();
         await this.loadAvailability();
         this.updateSelectedDateDisplay();
@@ -44,24 +52,60 @@ class AirportBookingSystem {
                 this.bookingData.tripType = e.target.value;
             });
         });
+        const defaultTripRadio = document.querySelector('input[name="tripType"]:checked');
+        if (defaultTripRadio) {
+            this.bookingData.tripType = defaultTripRadio.value;
+        }
 
         // Location input with GPS detection
-        document.getElementById('getLocationBtn').addEventListener('click', () => {
-            this.getCurrentLocation();
-        });
+        const detectBtn = document.getElementById('detectLocation');
+        if (detectBtn) {
+            detectBtn.addEventListener('click', () => {
+                this.getCurrentLocation();
+            });
+        }
 
-        // Input validation
-        document.getElementById('customerName').addEventListener('input', (e) => {
-            this.bookingData.customerName = e.target.value;
-        });
+        // Input wiring to internal bookingData
+        const nameInput = document.getElementById('name');
+        if (nameInput) {
+            nameInput.addEventListener('input', (e) => {
+                this.bookingData.customerName = e.target.value;
+            });
+        }
 
-        document.getElementById('phoneNumber').addEventListener('input', (e) => {
-            this.bookingData.phoneNumber = e.target.value;
-        });
+        const phoneInput = document.getElementById('phone');
+        if (phoneInput) {
+            phoneInput.addEventListener('input', (e) => {
+                this.bookingData.phoneNumber = e.target.value;
+            });
+        }
 
-        document.getElementById('pickupLocation').addEventListener('input', (e) => {
-            this.bookingData.pickupLocation = e.target.value;
-        });
+        const locationInput = document.getElementById('location');
+        if (locationInput) {
+            locationInput.addEventListener('input', (e) => {
+                this.bookingData.pickupLocation = e.target.value;
+            });
+        }
+        const activeTab = document.querySelector('.time-tab.active');
+        if (activeTab && activeTab.dataset.time) {
+            this.bookingData.timeSlot = activeTab.dataset.time;
+        }
+        const vehicleDropdown = document.getElementById('vehicleDropdown');
+        const vehicleMenu = document.getElementById('vehicleMenu');
+        if (vehicleDropdown && vehicleMenu) {
+            vehicleDropdown.addEventListener('click', () => {
+                const expanded = vehicleDropdown.getAttribute('aria-expanded') === 'true';
+                vehicleDropdown.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                vehicleMenu.classList.toggle('hidden', expanded);
+            });
+
+            document.addEventListener('click', (e) => {
+                if (!vehicleDropdown.contains(e.target) && !vehicleMenu.contains(e.target)) {
+                    vehicleDropdown.setAttribute('aria-expanded', 'false');
+                    vehicleMenu.classList.add('hidden');
+                }
+            });
+        }
     }
 
     async loadAvailability() {
@@ -70,10 +114,10 @@ class AirportBookingSystem {
             if (response.ok) {
                 const availability = await response.json();
                 this.availabilityData = availability.reduce((acc, item) => {
-                    acc[item.date] = {
-                        morning: item.morningAvailable,
-                        evening: item.eveningAvailable
-                    };
+                    const key = this.formatDateLocal(new Date(item.date));
+                    const morning = item.morningAvailable ?? item.morning_available ?? true;
+                    const evening = item.eveningAvailable ?? item.evening_available ?? true;
+                    acc[key] = { morning: !!morning, evening: !!evening };
                     return acc;
                 }, {});
                 this.generateCalendar();
@@ -85,13 +129,81 @@ class AirportBookingSystem {
         }
     }
 
+    async loadVehicles() {
+        try {
+            const res = await fetch(`${this.API_BASE_URL}/vehicles`);
+            if (!res.ok) throw new Error('Failed to load vehicles');
+            const json = await res.json();
+            const vehicles = (json.vehicles || []).filter(v => v.active !== false);
+            this.populateVehicleOptions(vehicles);
+        } catch (err) {
+            const fallback = [
+                { id: 'sedan', name: 'Sedan', rate: 700 },
+                { id: 'suv', name: 'SUV', rate: 900 },
+                { id: 'van', name: 'Van', rate: 1100 }
+            ];
+            this.populateVehicleOptions(fallback);
+        }
+    }
+
+    populateVehicleOptions(vehicles) {
+        const menu = document.getElementById('vehicleMenu');
+        const dropdownBtn = document.getElementById('vehicleDropdown');
+        const nativeSelect = document.getElementById('vehicleSelect');
+        const rateDisplay = document.getElementById('vehicleRateDisplay');
+        if (!menu || !dropdownBtn) return;
+
+        menu.innerHTML = '';
+        vehicles.forEach(v => {
+            const opt = document.createElement('div');
+            opt.className = 'dropdown-option';
+            opt.setAttribute('role', 'option');
+            opt.setAttribute('data-id', v.id);
+            opt.setAttribute('data-name', v.name);
+            opt.setAttribute('data-rate', String(v.rate));
+            opt.innerHTML = `<span>${v.name}</span><span class="opt-rate">₹${v.rate}</span>`;
+            opt.addEventListener('click', () => {
+                dropdownBtn.textContent = v.name;
+                dropdownBtn.setAttribute('aria-expanded', 'false');
+                menu.classList.add('hidden');
+                this.bookingData.vehicleId = v.id;
+                this.bookingData.vehicleName = v.name;
+                this.bookingData.vehicleRate = v.rate;
+                if (rateDisplay) rateDisplay.textContent = `₹${v.rate}`;
+                if (nativeSelect) nativeSelect.value = v.id;
+            });
+            menu.appendChild(opt);
+        });
+
+        if (nativeSelect) {
+            nativeSelect.innerHTML = '';
+            vehicles.forEach(v => {
+                const o = document.createElement('option');
+                o.value = v.id;
+                o.textContent = `${v.name} (₹${v.rate})`;
+                nativeSelect.appendChild(o);
+            });
+            nativeSelect.addEventListener('change', (e) => {
+                const id = e.target.value;
+                const v = vehicles.find(x => String(x.id) === String(id));
+                if (v) {
+                    dropdownBtn.textContent = v.name;
+                    this.bookingData.vehicleId = v.id;
+                    this.bookingData.vehicleName = v.name;
+                    this.bookingData.vehicleRate = v.rate;
+                    if (rateDisplay) rateDisplay.textContent = `₹${v.rate}`;
+                }
+            });
+        }
+    }
+
     generateMockAvailability() {
         // Generate mock availability for the next 30 days
         const today = new Date();
         for (let i = 0; i < 30; i++) {
             const date = new Date(today);
             date.setDate(today.getDate() + i);
-            const dateStr = date.toISOString().split('T')[0];
+            const dateStr = this.formatDateLocal(date);
             
             // Random availability for demo
             const morningAvailable = Math.random() > 0.3;
@@ -105,33 +217,25 @@ class AirportBookingSystem {
     }
 
     generateCalendar() {
-        const calendar = document.getElementById('calendar');
+        const calendar = document.getElementById('calendarGrid');
+        if (!calendar) return;
         calendar.innerHTML = '';
 
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
 
-        // Calendar header
-        const header = document.createElement('div');
-        header.className = 'calendar-header';
-        header.innerHTML = `
-            <button id="prevMonth">&lt;</button>
-            <h3>${this.currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</h3>
-            <button id="nextMonth">&gt;</button>
-        `;
-        calendar.appendChild(header);
-
-        // Calendar grid
-        const grid = document.createElement('div');
-        grid.className = 'calendar-grid';
+        const monthLabel = document.getElementById('monthYear');
+        if (monthLabel) {
+            monthLabel.textContent = this.currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        }
 
         // Day headers
         const dayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         dayHeaders.forEach(day => {
             const dayHeader = document.createElement('div');
-            dayHeader.className = 'calendar-day-header';
+            dayHeader.className = 'weekday';
             dayHeader.textContent = day;
-            grid.appendChild(dayHeader);
+            calendar.appendChild(dayHeader);
         });
 
         // Calendar days
@@ -144,7 +248,7 @@ class AirportBookingSystem {
         for (let i = 0; i < firstDay; i++) {
             const emptyCell = document.createElement('div');
             emptyCell.className = 'calendar-day empty';
-            grid.appendChild(emptyCell);
+            calendar.appendChild(emptyCell);
         }
 
         // Calendar days
@@ -153,25 +257,21 @@ class AirportBookingSystem {
             dayElement.className = 'calendar-day';
             
             const currentDay = new Date(year, month, day);
-            const dateStr = currentDay.toISOString().split('T')[0];
+            const dateStr = this.formatDateLocal(currentDay);
+            dayElement.setAttribute('data-date', dateStr);
             
-            // Check if date is in the past
             const isPastDate = currentDay < today;
-            
             if (isPastDate) {
                 dayElement.classList.add('past-date');
                 dayElement.style.pointerEvents = 'none';
             }
 
-            // Get availability for this date
             const availability = this.availabilityData[dateStr] || { morning: true, evening: true };
-            
-            // Determine availability status
             let status = 'available';
-            let statusText = 'Both Available';
-            
+            let statusText = '';
+
             if (!availability.morning && !availability.evening) {
-                status = 'unavailable';
+                status = 'booked';
                 statusText = 'Fully Booked';
             } else if (!availability.morning) {
                 status = 'partial';
@@ -182,7 +282,6 @@ class AirportBookingSystem {
             }
 
             dayElement.classList.add(status);
-            
             dayElement.innerHTML = `
                 <div class="calendar-day-number">${day}</div>
                 <div class="calendar-day-status">${isPastDate ? '' : statusText}</div>
@@ -194,21 +293,14 @@ class AirportBookingSystem {
                 });
             }
 
-            grid.appendChild(dayElement);
+            calendar.appendChild(dayElement);
         }
 
-        calendar.appendChild(grid);
-
-        // Month navigation
-        document.getElementById('prevMonth').addEventListener('click', () => {
-            this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-            this.generateCalendar();
-        });
-
-        document.getElementById('nextMonth').addEventListener('click', () => {
-            this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-            this.generateCalendar();
-        });
+        // Month navigation (use existing buttons)
+        const prev = document.getElementById('prevMonth');
+        const next = document.getElementById('nextMonth');
+        if (prev) prev.onclick = () => { this.currentDate.setMonth(this.currentDate.getMonth() - 1); this.generateCalendar(); };
+        if (next) next.onclick = () => { this.currentDate.setMonth(this.currentDate.getMonth() + 1); this.generateCalendar(); };
     }
 
     selectDate(date) {
@@ -218,7 +310,7 @@ class AirportBookingSystem {
         });
 
         // Add selection to clicked date
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = this.formatDateLocal(date);
         const dayElement = document.querySelector(`[data-date="${dateStr}"]`);
         if (dayElement) {
             dayElement.classList.add('selected');
@@ -254,7 +346,7 @@ class AirportBookingSystem {
     updateTimeSlotAvailability() {
         if (!this.selectedDate) return;
 
-        const dateStr = this.selectedDate.toISOString().split('T')[0];
+        const dateStr = this.formatDateLocal(this.selectedDate);
         const availability = this.availabilityData[dateStr] || { morning: true, evening: true };
 
         // Update morning tab
@@ -281,14 +373,37 @@ class AirportBookingSystem {
             }
         }
 
+        // Auto-select default slot based on availability
+        const currentSlot = this.bookingData.timeSlot;
+        const currentTab = currentSlot ? document.querySelector(`[data-time="${currentSlot}"]`) : null;
+        const isCurrentDisabled = currentTab ? currentTab.classList.contains('disabled') : true;
+        const canMorning = !!availability.morning;
+        const canEvening = !!availability.evening;
+        if (!canMorning && !canEvening) {
+            this.bookingData.timeSlot = '';
+        } else if (isCurrentDisabled || !currentSlot) {
+            document.querySelectorAll('.time-tab').forEach(tab => tab.classList.remove('active'));
+            if (canMorning) {
+                const tab = document.querySelector('[data-time="morning"]');
+                if (tab) tab.classList.add('active');
+                this.bookingData.timeSlot = 'morning';
+            } else if (canEvening) {
+                const tab = document.querySelector('[data-time="evening"]');
+                if (tab) tab.classList.add('active');
+                this.bookingData.timeSlot = 'evening';
+            }
+        }
+
         // If fully booked, disable booking button
-        const bookButton = document.getElementById('bookRideBtn');
-        if (!availability.morning && !availability.evening) {
-            bookButton.disabled = true;
-            bookButton.textContent = 'Fully Booked';
-        } else {
-            bookButton.disabled = false;
-            bookButton.textContent = 'Book Ride';
+        const bookButton = document.querySelector('.book-ride-btn');
+        if (bookButton) {
+            if (!availability.morning && !availability.evening) {
+                bookButton.disabled = true;
+                bookButton.textContent = 'Fully Booked';
+            } else {
+                bookButton.disabled = false;
+                bookButton.textContent = 'Book Ride';
+            }
         }
     }
 
@@ -308,8 +423,8 @@ class AirportBookingSystem {
     }
 
     async getCurrentLocation() {
-        const locationBtn = document.getElementById('getLocationBtn');
-        const locationInput = document.getElementById('pickupLocation');
+        const locationBtn = document.getElementById('detectLocation');
+        const locationInput = document.getElementById('location');
         
         locationBtn.disabled = true;
         locationBtn.textContent = 'Getting location...';
@@ -342,8 +457,10 @@ class AirportBookingSystem {
             }
         } else {
             alert('Geolocation is not supported by your browser.');
-            locationBtn.disabled = false;
-            locationBtn.textContent = 'Get Current Location';
+            if (locationBtn) {
+                locationBtn.disabled = false;
+                locationBtn.textContent = 'Detect Location';
+            }
         }
     }
 
@@ -380,32 +497,75 @@ class AirportBookingSystem {
     }
 
     async handleBooking() {
+        // Ensure last-minute defaults before validation
+        if (!this.bookingData.timeSlot) {
+            const dateStr = this.selectedDate ? this.formatDateLocal(this.selectedDate) : null;
+            const avail = dateStr ? (this.availabilityData[dateStr] || { morning: true, evening: true }) : { morning: true, evening: true };
+            if (avail.morning) {
+                const tab = document.querySelector('[data-time="morning"]');
+                if (tab) {
+                    document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                }
+                this.bookingData.timeSlot = 'morning';
+            } else if (avail.evening) {
+                const tab = document.querySelector('[data-time="evening"]');
+                if (tab) {
+                    document.querySelectorAll('.time-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                }
+                this.bookingData.timeSlot = 'evening';
+            }
+        }
+        if (!this.bookingData.tripType) {
+            const defaultTripRadio = document.querySelector('input[name="tripType"]:checked');
+            if (defaultTripRadio) this.bookingData.tripType = defaultTripRadio.value;
+        }
+        if (!this.bookingData.pickupLocation) {
+            const locInput = document.getElementById('location');
+            if (locInput) this.bookingData.pickupLocation = locInput.value;
+        }
+
         const errors = this.validateForm();
         if (errors.length > 0) {
             alert('Please fix the following errors:\n' + errors.join('\n'));
             return;
         }
 
-        const bookButton = document.getElementById('bookRideBtn');
-        bookButton.disabled = true;
-        bookButton.textContent = 'Processing...';
+        const bookButton = document.querySelector('.book-ride-btn');
+        if (bookButton) {
+            bookButton.disabled = true;
+            bookButton.textContent = 'Processing...';
+        }
 
         try {
-            // Calculate amount based on trip type
-            const amount = this.calculateAmount();
-            
-            const bookingData = {
-                ...this.bookingData,
-                amount,
-                status: 'pending'
+            // Build payload for backend schema
+            const tripEnum = this.bookingData.tripType === 'home-to-airport' ? 'HOME_TO_AIRPORT' : 'AIRPORT_TO_HOME';
+            const userAddress = this.bookingData.pickupLocation;
+            const pickupLocation = tripEnum === 'HOME_TO_AIRPORT' ? userAddress : 'Airport';
+            const dropoffLocation = tripEnum === 'HOME_TO_AIRPORT' ? 'Airport' : userAddress;
+
+            const payload = {
+                name: this.bookingData.customerName,
+                phone: this.bookingData.phoneNumber,
+                pickupLocation,
+                dropoffLocation,
+                pickupDate: this.bookingData.date,
+                pickupTime: this.bookingData.timeSlot,
+                tripType: tripEnum,
+                price: this.calculateAmount(),
+                notes: ''
             };
+            if (this.bookingData.vehicleId) payload.vehicleId = this.bookingData.vehicleId;
+            if (this.bookingData.vehicleName) payload.vehicleName = this.bookingData.vehicleName;
+            if (this.bookingData.vehicleRate) payload.vehicleRate = this.bookingData.vehicleRate;
 
             const response = await fetch(`${this.API_BASE_URL}/bookings`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(bookingData)
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
@@ -413,48 +573,40 @@ class AirportBookingSystem {
                 this.handleSuccessfulBooking(result);
             } else {
                 const error = await response.json();
-                throw new Error(error.message || 'Booking failed');
+                const msg = error.message || error.error || (Array.isArray(error.errors) ? (error.errors[0]?.msg || error.errors[0]) : null) || 'Booking failed';
+                throw new Error(String(msg));
             }
         } catch (error) {
             console.error('Booking error:', error);
             alert('Booking failed: ' + error.message);
-            bookButton.disabled = false;
-            bookButton.textContent = 'Book Ride';
+            if (bookButton) {
+                bookButton.disabled = false;
+                bookButton.textContent = 'Book Ride';
+            }
         }
     }
 
     calculateAmount() {
-        const basePrice = 500; // Base price in INR
-        let multiplier = 1;
-
-        switch (this.bookingData.tripType) {
-            case 'round_trip':
-                multiplier = 1.8; // 10% discount for round trip
-                break;
-            case 'home_to_airport':
-            case 'airport_to_home':
-                multiplier = 1;
-                break;
-        }
-
-        return Math.round(basePrice * multiplier);
+        const rate = Number(this.bookingData.vehicleRate || 500);
+        return Math.round(rate);
     }
 
     handleSuccessfulBooking(booking) {
-        // Show success message
+        const name = booking.name || booking.customerName || '';
+        const d = booking.pickup_date || booking.pickupDate || booking.date;
+        const t = booking.pickup_time || booking.pickupTime || booking.timeSlot || '';
+        const trip = booking.trip_type || booking.tripType || '';
+        const amt = booking.price || booking.amount || this.calculateAmount();
+        const tripLabel = trip === 'HOME_TO_AIRPORT' ? 'Home to Airport' : trip === 'AIRPORT_TO_HOME' ? 'Airport to Home' : String(trip).replace(/_/g, ' ');
         alert(`Booking confirmed!\n\n` +
               `Booking ID: ${booking.id}\n` +
-              `Customer: ${booking.customerName}\n` +
-              `Date: ${new Date(booking.date).toLocaleDateString()}\n` +
-              `Time: ${booking.timeSlot}\n` +
-              `Trip: ${booking.tripType.replace('_', ' ')}\n` +
-              `Amount: ₹${booking.amount}\n\n` +
+              `Customer: ${name}\n` +
+              `Date: ${d ? new Date(d).toLocaleDateString() : ''}\n` +
+              `Time: ${t}\n` +
+              `Trip: ${tripLabel}\n` +
+              `Amount: ₹${amt}\n\n` +
               `You will receive a confirmation email/SMS shortly.`);
-
-        // Reset form
         this.resetForm();
-        
-        // Reload availability to update calendar
         this.loadAvailability();
     }
 
@@ -470,9 +622,12 @@ class AirportBookingSystem {
         };
 
         // Reset form fields
-        document.getElementById('customerName').value = '';
-        document.getElementById('phoneNumber').value = '';
-        document.getElementById('pickupLocation').value = '';
+        const nameInput = document.getElementById('name');
+        const phoneInput = document.getElementById('phone');
+        const locationInput = document.getElementById('location');
+        if (nameInput) nameInput.value = '';
+        if (phoneInput) phoneInput.value = '';
+        if (locationInput) locationInput.value = '';
         document.querySelectorAll('input[name="tripType"]').forEach(radio => {
             radio.checked = false;
         });
@@ -488,13 +643,20 @@ class AirportBookingSystem {
         this.updateSelectedDateDisplay();
 
         // Reset button
-        const bookButton = document.getElementById('bookRideBtn');
-        bookButton.disabled = false;
-        bookButton.textContent = 'Book Ride';
+        const bookButton = document.querySelector('.book-ride-btn');
+        if (bookButton) {
+            bookButton.disabled = false;
+            bookButton.textContent = 'Book Ride';
+        }
     }
 }
 
-// Initialize the booking system when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    new AirportBookingSystem();
-});
+// Initialize once, whether DOM is already loaded or not
+if (!window.__AirportBookingSystemInit) {
+    window.__AirportBookingSystemInit = true;
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => { new AirportBookingSystem(); });
+    } else {
+        new AirportBookingSystem();
+    }
+}
