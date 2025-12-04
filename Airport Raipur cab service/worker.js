@@ -17,14 +17,14 @@ export default {
         const resp = await fetch(upstreamUrl, init);
         return new Response(resp.body, { status: resp.status, headers: resp.headers });
       }
-      const method = request.method;
-      const path = url.pathname === '/' ? '/index.html' : url.pathname;
-      const assetURL = new URL(path + url.search, url.origin);
-      const assetInit = { method, headers: new Headers(request.headers) };
-      if (!['GET', 'HEAD'].includes(method)) assetInit.body = await request.arrayBuffer();
       if (env.ASSETS) {
-        const assetResp = await env.ASSETS.fetch(new Request(assetURL, assetInit));
+        // Serve assets directly; if 404 and path is root, try index.html
+        const assetResp = await env.ASSETS.fetch(request);
         if (assetResp.status !== 404) return assetResp;
+        if (url.pathname === '/' || url.pathname === '/index') {
+          const indexResp = await env.ASSETS.fetch(new Request(url.origin + '/index.html'));
+          if (indexResp.status !== 404) return indexResp;
+        }
       }
       return new Response('Not Found', { status: 404 });
     } catch (e) {
