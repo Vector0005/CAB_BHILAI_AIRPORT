@@ -17,21 +17,14 @@ export default {
         const resp = await fetch(upstreamUrl, init);
         return new Response(resp.body, { status: resp.status, headers: resp.headers });
       }
+      const method = request.method;
+      const path = url.pathname === '/' ? '/index.html' : url.pathname;
+      const assetURL = new URL(path + url.search, url.origin);
+      const assetInit = { method, headers: new Headers(request.headers) };
+      if (!['GET', 'HEAD'].includes(method)) assetInit.body = await request.arrayBuffer();
       if (env.ASSETS) {
-        const assetResp = await env.ASSETS.fetch(request);
+        const assetResp = await env.ASSETS.fetch(new Request(assetURL, assetInit));
         if (assetResp.status !== 404) return assetResp;
-      }
-      if (url.pathname === '/' || url.pathname === '/index.html') {
-        if (env.ASSETS) {
-          const indexResp = await env.ASSETS.fetch(new Request(url.origin + '/index.html', request));
-          if (indexResp.status !== 404) return indexResp;
-        }
-      }
-      if (url.pathname === '/admin' || url.pathname === '/admin.html') {
-        if (env.ASSETS) {
-          const adminResp = await env.ASSETS.fetch(new Request(url.origin + '/admin.html', request));
-          if (adminResp.status !== 404) return adminResp;
-        }
       }
       return new Response('Not Found', { status: 404 });
     } catch (e) {
