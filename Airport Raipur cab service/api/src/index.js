@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { existsSync } from 'fs';
 
 // Import routes
 import bookingRoutes from './routes/bookings.js';
@@ -74,6 +75,9 @@ app.use(morgan('combined'));
 // Serve static booking site from project root
 app.use(express.static(join(__dirname, '../../'), { index: 'index.html' }));
 
+// Also serve files from the repository root to include script-backend.js
+app.use(express.static(join(__dirname, '../../../')));
+
 // Explicit root route for booking site
 app.get('/', (req, res) => {
   const indexPath = join(__dirname, '../../index.html');
@@ -110,13 +114,17 @@ app.use('/api/promos', promosRoutes);
 
 // Admin redirect - serve admin.html for /admin route
 app.get('/admin', (req, res) => {
-  const adminPath = join(__dirname, '../../admin.html');
-  res.sendFile(adminPath, (err) => {
+  const primary = join(__dirname, '../../Airport Raipur cab service/admin.html');
+  const fallback = join(__dirname, '../../admin.html');
+  const target = existsSync(primary) ? primary : fallback;
+  res.sendFile(target, (err) => {
+    if (err && target !== fallback && existsSync(fallback)) {
+      return res.sendFile(fallback);
+    }
     if (err) {
-      console.error('Admin file not found:', err);
       res.status(404).json({ 
         error: 'Admin panel not found',
-        message: 'Please ensure admin.html exists in the root directory'
+        message: 'Please ensure admin.html exists in the project'
       });
     }
   });
@@ -124,13 +132,17 @@ app.get('/admin', (req, res) => {
 
 // Serve admin.html directly for compatibility with /admin.html path
 app.get('/admin.html', (req, res) => {
-  const adminPath = join(__dirname, '../../admin.html');
-  res.sendFile(adminPath, (err) => {
+  const primary = join(__dirname, '../../Airport Raipur cab service/admin.html');
+  const fallback = join(__dirname, '../../admin.html');
+  const target = existsSync(primary) ? primary : fallback;
+  res.sendFile(target, (err) => {
+    if (err && target !== fallback && existsSync(fallback)) {
+      return res.sendFile(fallback);
+    }
     if (err) {
-      console.error('Admin file not found:', err);
       res.status(404).json({ 
         error: 'Admin panel not found',
-        message: 'Please ensure admin.html exists in the root directory'
+        message: 'Please ensure admin.html exists in the project'
       });
     }
   });
@@ -145,6 +157,34 @@ app.get('/api/admin.js', (req, res) => {
       res.status(404).json({ 
         error: 'Admin JS not found',
         message: 'Please ensure api/admin.js exists in the project'
+      });
+    }
+  });
+});
+
+// Serve booking frontend script (script-backend.js) from project root
+app.get('/script-backend.js', (req, res) => {
+  const scriptPath = join(__dirname, '../../../script-backend.js');
+  res.sendFile(scriptPath, (err) => {
+    if (err) {
+      console.error('Booking script not found:', err);
+      res.status(404).json({
+        error: 'Frontend script not found',
+        message: 'Ensure script-backend.js exists in the project root'
+      });
+    }
+  });
+});
+
+// Also expose under /api/script-backend.js for explicit same-origin loading
+app.get('/api/script-backend.js', (req, res) => {
+  const scriptPath = join(__dirname, '../../../script-backend.js');
+  res.sendFile(scriptPath, (err) => {
+    if (err) {
+      console.error('Booking script not found:', err);
+      res.status(404).json({
+        error: 'Frontend script not found',
+        message: 'Ensure script-backend.js exists in the project root'
       });
     }
   });
