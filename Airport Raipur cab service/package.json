@@ -1,6 +1,6 @@
 {
   "name": "airport-travel-booking",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "private": true,
   "dependencies": {
     "express-validator": "^7.3.0",
