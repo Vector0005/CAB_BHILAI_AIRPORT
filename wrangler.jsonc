@@ -3,7 +3,7 @@
   "compatibility_date": "2025-12-04",
   "main": "Airport Raipur cab service/worker.js",
   "assets": {
-    "directory": "."
+    "directory": "Airport Raipur cab service"
   },
   "vars": {
     "API_BASE_URL": ""
