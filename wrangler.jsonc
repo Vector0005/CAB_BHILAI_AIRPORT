@@ -1,0 +1,6 @@
+{
+  "name": "cab-bhilai-airport-admin",
+  "compatibility_date": "2025-12-04",
+  "main": "Airport Raipur cab service/worker.js",
+  "send_metrics": false
+}
