@@ -198,6 +198,26 @@ export default {
           const data = r.status === 200 ? await r.json().catch(() => []) : [];
           return json({ vehicles: Array.isArray(data) ? data : [] });
         }
+        if (pathname === '/api/promos' && method === 'GET') {
+          const params = new URLSearchParams({ select: '*' });
+          if (sp.get('code')) params.append('code', 'eq.' + sp.get('code'));
+          if (sp.get('active')) params.append('active', 'eq.' + sp.get('active'));
+          const r = await supabase('/promos?' + params.toString(), { method: 'GET' }, true);
+          const data = r.status === 200 ? await r.json().catch(() => []) : [];
+          return json({ promos: Array.isArray(data) ? data : [] });
+        }
+        if (pathname === '/api/promos' && method === 'POST') {
+          const body = await readBody();
+          const payload = { id: (crypto && typeof crypto.randomUUID==='function') ? crypto.randomUUID() : String(Date.now()), code: String(body?.code||'').toUpperCase(), discount_percent: Number(body?.discount_percent||0), discount_flat: Number(body?.discount_flat||0), max_uses: Number(body?.max_uses||0), used_count: 0, active: (body?.active??true), valid_from: body?.valid_from || new Date().toISOString(), valid_to: body?.valid_to || new Date('2099-12-31').toISOString() };
+          const r = await supabase('/promos', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+          return r;
+        }
+        if (pathname.startsWith('/api/promos/') && method === 'PATCH') {
+          const id = pathname.split('/')[3];
+          const body = await readBody();
+          const r = await supabase('/promos?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body||{}) }, true);
+          return r;
+        }
         if (pathname === '/api/vehicles' && method === 'POST') {
           const body = await readBody();
           const payload = { id: (crypto && typeof crypto.randomUUID==='function') ? crypto.randomUUID() : String(Date.now()), name: String(body?.name || ''), rate: Number(body?.rate || 0), active: (body?.active ?? true) };

@@ -827,7 +827,8 @@
                             <h3>Vehicles</h3>
                             <div style="display:flex;gap:10px;align-items:center;">
                                 <input type="text" id="vehicleNameInput" class="search-box" placeholder="Vehicle name">
-                                <input type="number" id="vehicleRateInput" class="search-box" placeholder="Rate (₹)">
+                                <input type="number" id="vehicleRateInput" class="search-box" placeholder="Actual Rate (₹)">
+                                <input type="number" id="vehicleDiscountRateInput" class="search-box" placeholder="Discounted Rate (₹)">
                                 <button id="addVehicleBtn" class="btn btn-primary">Add Vehicle</button>
                             </div>
                         </div>
@@ -836,6 +837,7 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>Rate (₹)</th>
+                                    <th>Discounted (₹)</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -1303,23 +1305,29 @@
                     if (window.adminPanel) { window.adminPanel.vehicles = rows; }
                     const tbody=document.getElementById('vehiclesTableBody');
                     if(!tbody) return;
-                    if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">No vehicles found</td></tr>'; return; }
+                    if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="5" class="loading">No vehicles found</td></tr>'; return; }
                     tbody.innerHTML=rows.map(function(v){
                         const isActive = v.active;
                         const toggleButtonClass = isActive ? 'btn-disable' : 'btn-enable';
                         const toggleButtonText = isActive ? '⏸️ Disable' : '✅ Enable';
-                        
                         return '<tr>'+
                         '<td>'+v.name+'</td>'+
                         '<td>₹'+Number(v.rate)+'</td>'+
+                        '<td id="disc-'+v.id+'">—</td>'+
                         '<td><span class="status-badge status-'+(isActive?'available':'unavailable')+'">'+(isActive?'Active':'Inactive')+'</span></td>'+
                         '<td><div class="action-buttons">'+
-                        '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rate</button>'+
+                        '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rates</button>'+
                         '<button class="btn btn-sm '+toggleButtonClass+' toggle-vehicle" data-id="'+v.id+'" data-active="'+v.active+'">'+toggleButtonText+'</button>'+
                         '<button class="btn btn-sm btn-danger delete-vehicle" data-id="'+v.id+'">Delete</button>'+
                         '</div></td>'+
                         '</tr>'
                     }).join('');
+                    try {
+                        const pr = await fetch(getApiUrl('/api/promos'));
+                        const pj = pr.ok ? await pr.json() : { promos: [] };
+                        const map = new Map(); (pj.promos||[]).forEach(p => { if (/^VEH_/.test(p.code||'')) { map.set(p.code, p); } });
+                        (rows||[]).forEach(v => { const el = document.getElementById('disc-'+v.id); if (!el) return; const promo = map.get('VEH_'+v.id); if (promo && promo.active) { const disc = Math.max(0, Number(v.rate) - Number(promo.discount_flat||0)); el.textContent = '₹'+disc; } });
+                    } catch(_){}
                 }catch(e){
                     try{
                         const u=API_CONFIG.supabaseUrl; const k=API_CONFIG.supabaseAnonKey;
@@ -1328,7 +1336,7 @@
                         if (window.adminPanel) { window.adminPanel.vehicles = rows; }
                         const tbody=document.getElementById('vehiclesTableBody');
                         if(!tbody) return;
-                        if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">No vehicles found</td></tr>'; return; }
+                        if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="5" class="loading">No vehicles found</td></tr>'; return; }
                         tbody.innerHTML=rows.map(function(v){
                             const isActive = v.active;
                             const toggleButtonClass = isActive ? 'btn-disable' : 'btn-enable';
@@ -1336,14 +1344,16 @@
                             return '<tr>'+
                             '<td>'+(v.name||'')+'</td>'+
                             '<td>₹'+Number(v.rate||v.vehicle_rate||0)+'</td>'+
+                            '<td id="disc-'+v.id+'">—</td>'+
                             '<td><span class="status-badge status-'+(isActive?'available':'unavailable')+'">'+(isActive?'Active':'Inactive')+'</span></td>'+
                             '<td><div class="action-buttons">'+
-                            '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rate</button>'+
+                            '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rates</button>'+
                             '<button class="btn btn-sm '+toggleButtonClass+' toggle-vehicle" data-id="'+v.id+'" data-active="'+(v.active)+'">'+toggleButtonText+'</button>'+
                             '<button class="btn btn-sm btn-danger delete-vehicle" data-id="'+v.id+'">Delete</button>'+
                             '</div></td>'+
                             '</tr>'
                         }).join('');
+                        try { const pr = await fetch(u+'/rest/v1/promos?select=*', { headers:{ apikey:k, Authorization:'Bearer '+k }}); const pj = pr.ok ? await pr.json() : []; const map = new Map(); (pj||[]).forEach(p => { if (/^VEH_/.test(p.code||'')) { map.set(p.code, p); } }); (rows||[]).forEach(v => { const el = document.getElementById('disc-'+v.id); if (!el) return; const promo = map.get('VEH_'+v.id); if (promo && promo.active) { const disc = Math.max(0, Number(v.rate||v.vehicle_rate||0) - Number(promo.discount_flat||0)); el.textContent = '₹'+disc; } }); } catch(_){}
                     }catch(_){}
                 }
             }
@@ -1547,26 +1557,36 @@
                 if (!(window.adminPanel && typeof window.adminPanel.addVehicle==='function')) {
                     var nameEl=document.getElementById('vehicleNameInput');
                     var rateEl=document.getElementById('vehicleRateInput');
+                    var discEl=document.getElementById('vehicleDiscountRateInput');
                     var name=(nameEl&&nameEl.value||'').trim();
                     var rate=parseFloat(rateEl&&rateEl.value||'');
+                    var disc=parseFloat(discEl&&discEl.value||'');
                     if (!name || isNaN(rate)) return;
                     try {
-                        await fetch(getApiUrl('/api/vehicles'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, rate }) });
+                        const rv = await fetch(getApiUrl('/api/vehicles'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, rate }) });
+                        const j = rv.ok ? await rv.json().catch(()=>null) : null;
+                        const created = Array.isArray(j) ? j[0] : (j && j.vehicles ? j.vehicles[0] : j);
+                        if (!isNaN(disc) && disc>0 && disc<rate && created && created.id) {
+                          const code = 'VEH_'+created.id;
+                          await fetch(getApiUrl('/api/promos'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code, discount_percent: 0, discount_flat: Number(rate-disc), active: true, valid_from: new Date().toISOString(), valid_to: '2099-12-31T00:00:00Z' }) });
+                        }
                         if (nameEl) nameEl.value='';
                         if (rateEl) rateEl.value='';
+                        if (discEl) discEl.value='';
                         await (async function(){ const r=await fetch(getApiUrl('/api/vehicles')); const d=await r.json(); var rows=d.vehicles||[]; var tbody=document.getElementById('vehiclesTableBody'); if(tbody) tbody.innerHTML=rows.map(function(v){ 
                             const isActive = v.active;
                             const toggleButtonClass = isActive ? 'btn-disable' : 'btn-enable';
                             const toggleButtonText = isActive ? '⏸️ Disable' : '✅ Enable';
-                            return '<tr>'+
-                            '<td>'+v.name+'</td>'+
-                            '<td>₹'+Number(v.rate)+'</td>'+
-                            '<td><span class="status-badge status-'+(isActive?'available':'unavailable')+'">'+(isActive?'Active':'Inactive')+'</span></td>'+
-                            '<td><div class="action-buttons">'+
-                            '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rate</button>'+
-                            '<button class="btn btn-sm '+toggleButtonClass+' toggle-vehicle" data-id="'+v.id+'" data-active="'+v.active+'">'+toggleButtonText+'</button>'+
-                            '<button class="btn btn-sm btn-danger delete-vehicle" data-id="'+v.id+'">Delete</button>'+
-                            '</div></td>'+
+                            return '<tr>'+ 
+                            '<td>'+v.name+'</td>'+ 
+                            '<td>₹'+Number(v.rate)+'</td>'+ 
+                            '<td id="disc-'+v.id+'">—</td>'+ 
+                            '<td><span class="status-badge status-'+(isActive?'available':'unavailable')+'">'+(isActive?'Active':'Inactive')+'</span></td>'+ 
+                            '<td><div class="action-buttons">'+ 
+                            '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rates</button>'+ 
+                            '<button class="btn btn-sm '+toggleButtonClass+' toggle-vehicle" data-id="'+v.id+'" data-active="'+v.active+'">'+toggleButtonText+'</button>'+ 
+                            '<button class="btn btn-sm btn-danger delete-vehicle" data-id="'+v.id+'">Delete</button>'+ 
+                            '</div></td>'+ 
                             '</tr>' 
                         }).join(''); })();
                     } catch(_){}
@@ -1574,7 +1594,7 @@
             } else if (editVehicle) {
                 e.preventDefault();
                 if (!(window.adminPanel && typeof window.adminPanel.updateVehicle==='function')) {
-                    var id=e.target.dataset.id; var newRate=parseFloat(prompt('Enter new rate (₹):')||''); if (isNaN(newRate)) return; try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rate:newRate }) }); await fillVehicles(); } catch(_){}
+                    var id=e.target.dataset.id; var newRate=parseFloat(prompt('Enter new actual rate (₹):')||''); if (isNaN(newRate)) return; var discRate=parseFloat(prompt('Enter discounted rate (₹), leave blank to remove:')||''); try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rate:newRate }) }); if (!isNaN(discRate) && discRate>0 && discRate<newRate) { const code='VEH_'+id; const promos=await fetch(getApiUrl('/api/promos?code='+encodeURIComponent(code)+'&active=true')); const pj=promos.ok?await promos.json():{promos:[]}; if (Array.isArray(pj.promos)&&pj.promos.length){ const promo=pj.promos[0]; await fetch(getApiUrl('/api/promos/'+promo.id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ discount_percent:0, discount_flat: Number(newRate-discRate), active:true }) }); } else { await fetch(getApiUrl('/api/promos'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code, discount_percent:0, discount_flat: Number(newRate-discRate), active:true, valid_from:new Date().toISOString(), valid_to:'2099-12-31T00:00:00Z' }) }); } } else { const code='VEH_'+id; const promos=await fetch(getApiUrl('/api/promos?code='+encodeURIComponent(code)+'&active=true')); const pj=promos.ok?await promos.json():{promos:[]}; if (Array.isArray(pj.promos)&&pj.promos.length){ const promo=pj.promos[0]; await fetch(getApiUrl('/api/promos/'+promo.id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ active:false }) }); } } await fillVehicles(); } catch(_){}
                 }
             } else if (toggleVehicle) {
                 e.preventDefault();

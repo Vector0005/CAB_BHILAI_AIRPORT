@@ -169,6 +169,12 @@ class AirportBookingSystem {
         const dropdownBtn = document.getElementById('vehicleDropdown');
         const nativeSelect = document.getElementById('vehicleSelect');
         const rateDisplay = document.getElementById('vehicleRateDisplay');
+        let promosMap = new Map();
+        try {
+            const pr = await fetch(`${this.API_BASE_URL}/promos`);
+            const pj = pr.ok ? await pr.json() : { promos: [] };
+            (pj.promos||[]).forEach(p => { if (/^VEH_/i.test(p.code||'')) { promosMap.set(String(p.code), p); } });
+        } catch(_) {}
         if (!menu || !dropdownBtn) return;
 
         menu.innerHTML = '';
@@ -179,7 +185,10 @@ class AirportBookingSystem {
             opt.setAttribute('data-id', v.id);
             opt.setAttribute('data-name', v.name);
             opt.setAttribute('data-rate', String(v.rate));
-            opt.innerHTML = `<span>${v.name}</span><span class="opt-rate">₹${v.rate}</span>`;
+            const promo = promosMap.get('VEH_'+(v.id||''));
+            const discounted = promo && promo.active ? Math.max(0, Number(v.rate) - Number(promo.discount_flat||0)) : null;
+            const rateLabel = discounted ? `<span class="opt-rate"><span class="rate-original">₹${v.rate}</span> <span class="rate-discount">₹${discounted}</span></span>` : `<span class="opt-rate">₹${v.rate}</span>`;
+            opt.innerHTML = `<span>${v.name}</span>${rateLabel}`;
             opt.addEventListener('click', () => {
                 dropdownBtn.textContent = v.name;
                 dropdownBtn.setAttribute('aria-expanded', 'false');
@@ -187,7 +196,12 @@ class AirportBookingSystem {
                 this.bookingData.vehicleId = v.id;
                 this.bookingData.vehicleName = v.name;
                 this.bookingData.vehicleRate = v.rate;
-                if (rateDisplay) rateDisplay.textContent = `₹${v.rate}`;
+                const promoSel = promosMap.get('VEH_'+(v.id||''));
+                const discountedSel = promoSel && promoSel.active ? Math.max(0, Number(v.rate) - Number(promoSel.discount_flat||0)) : null;
+                this.bookingData.vehicleDiscountedRate = discountedSel || null;
+                if (rateDisplay) {
+                    rateDisplay.innerHTML = discountedSel ? `<span class="rate-original">₹${v.rate}</span> <span class="rate-discount">₹${discountedSel}</span>` : `₹${v.rate}`;
+                }
                 if (nativeSelect) nativeSelect.value = v.id;
             });
             menu.appendChild(opt);
@@ -198,7 +212,9 @@ class AirportBookingSystem {
             vehicles.forEach(v => {
                 const o = document.createElement('option');
                 o.value = v.id;
-                o.textContent = `${v.name} (₹${v.rate})`;
+                const promo2 = promosMap.get('VEH_'+(v.id||''));
+                const disc2 = promo2 && promo2.active ? Math.max(0, Number(v.rate) - Number(promo2.discount_flat||0)) : null;
+                o.textContent = disc2 ? `${v.name} (₹${v.rate} → ₹${disc2})` : `${v.name} (₹${v.rate})`;
                 nativeSelect.appendChild(o);
             });
             nativeSelect.addEventListener('change', (e) => {
@@ -209,7 +225,12 @@ class AirportBookingSystem {
                     this.bookingData.vehicleId = v.id;
                     this.bookingData.vehicleName = v.name;
                     this.bookingData.vehicleRate = v.rate;
-                    if (rateDisplay) rateDisplay.textContent = `₹${v.rate}`;
+                    const promoSel2 = promosMap.get('VEH_'+(v.id||''));
+                    const discountedSel2 = promoSel2 && promoSel2.active ? Math.max(0, Number(v.rate) - Number(promoSel2.discount_flat||0)) : null;
+                    this.bookingData.vehicleDiscountedRate = discountedSel2 || null;
+                    if (rateDisplay) {
+                        rateDisplay.innerHTML = discountedSel2 ? `<span class="rate-original">₹${v.rate}</span> <span class="rate-discount">₹${discountedSel2}</span>` : `₹${v.rate}`;
+                    }
                 }
             });
         }
@@ -672,7 +693,9 @@ class AirportBookingSystem {
 
     calculateAmount() {
         const rate = Number(this.bookingData.vehicleRate || 500);
-        return Math.round(rate);
+        const disc = Number(this.bookingData.vehicleDiscountedRate || 0);
+        const final = disc>0 && disc<rate ? disc : rate;
+        return Math.round(final);
     }
 
     handleSuccessfulBooking(booking) {
