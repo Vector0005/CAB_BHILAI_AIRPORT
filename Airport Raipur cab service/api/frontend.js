@@ -370,6 +370,25 @@ class AirportBookingSystem {
         setTimeout(() => { try { el.classList.remove('show'); el.classList.add('hidden'); } catch(_){} }, 4000);
     }
 
+    async tryIpLocation() {
+        try {
+            const r = await fetch('https://ipapi.co/json/');
+            if (!r.ok) return false;
+            const j = await r.json();
+            const lat = Number(j.latitude);
+            const lon = Number(j.longitude);
+            if (!isNaN(lat) && !isNaN(lon)) {
+                const locationText = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+                const locationInput = document.getElementById('location');
+                if (locationInput) locationInput.value = locationText;
+                this.bookingData.pickupLocation = locationText;
+                this.showNotice('success', 'Approximate location captured');
+                return true;
+            }
+        } catch(_) {}
+        return false;
+    }
+
     updateTimeSlotAvailability() {
         if (!this.selectedDate) return;
 
@@ -509,7 +528,10 @@ class AirportBookingSystem {
                 }, 1200);
 
             } catch (error) {
-                this.showNotice('error', 'Unable to fetch location. Paste a Google Maps link or enter address.');
+                const usedIp = await this.tryIpLocation();
+                if (!usedIp) {
+                    this.showNotice('error', 'Unable to fetch location. Paste a Google Maps link or enter address.');
+                }
                 locationBtn.textContent = 'Location Failed';
                 setTimeout(() => {
                     locationBtn.textContent = 'Get Current Location';
