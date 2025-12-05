@@ -97,18 +97,31 @@ export default {
     const menu = document.getElementById('vehicleMenu');
     const dropdown = document.getElementById('vehicleDropdown');
     const rateDisp = document.getElementById('vehicleRateDisplay');
-    fetch(api('/api/vehicles')).then(r=>r.ok?r.json():[]).then(d => {
+    Promise.all([
+      fetch(api('/api/vehicles')).then(r=>r.ok?r.json():{vehicles:[]}),
+      fetch(api('/api/promos')).then(r=>r.ok?r.json():{promos:[]})
+    ]).then(([d, p]) => {
       const rows = Array.isArray(d) ? d : (d.vehicles || []);
+      const promos = Array.isArray(p) ? p : (p.promos || []);
+      const promoMap = new Map();
+      (promos||[]).forEach(pr => { if (/^VEH_/i.test(String(pr.code||''))) promoMap.set(String(pr.code), pr); });
       menu.innerHTML = '';
       rows.forEach(v => {
         const opt = document.createElement('div');
         opt.className = 'dropdown-item';
-        opt.textContent = (v.name || v.vehicle_name || 'Vehicle') + ' — ' + fmtINR(v.rate || v.vehicle_rate || 0);
+        const rate = Number(v.rate || v.vehicle_rate || 0);
+        const promo = promoMap.get('VEH_' + (v.id || v.vehicle_id || ''));
+        const discounted = promo && promo.active ? Math.max(0, rate - Number(promo.discount_flat||0)) : null;
+        opt.innerHTML = (v.name || v.vehicle_name || 'Vehicle') + ' — ' + (discounted ? ('<span class="rate-original">'+fmtINR(rate)+'</span> <span class="rate-discount">'+fmtINR(discounted)+'</span>') : fmtINR(rate));
         opt.setAttribute('role','option');
         opt.addEventListener('click', () => {
           dropdown.textContent = v.name || v.vehicle_name || 'Vehicle';
-          if (rateDisp) rateDisp.textContent = fmtINR(v.rate || v.vehicle_rate || 0);
-          window.selectedVehicle = { id: v.id || v.vehicle_id || null, name: v.name || v.vehicle_name || '', rate: Number(v.rate || v.vehicle_rate || 0) };
+          const rate = Number(v.rate || v.vehicle_rate || 0);
+          const promo = promoMap.get('VEH_' + (v.id || v.vehicle_id || ''));
+          const discounted = promo && promo.active ? Math.max(0, rate - Number(promo.discount_flat||0)) : null;
+          const finalRate = (discounted && discounted>0 && discounted<rate) ? discounted : rate;
+          if (rateDisp) rateDisp.innerHTML = (discounted ? ('<span class="rate-original">'+fmtINR(rate)+'</span> <span class="rate-discount">'+fmtINR(finalRate)+'</span>') : fmtINR(rate));
+          window.selectedVehicle = { id: v.id || v.vehicle_id || null, name: v.name || v.vehicle_name || '', rate, discounted: discounted };
           menu.classList.add('hidden'); dropdown.setAttribute('aria-expanded','false');
         });
         menu.appendChild(opt);
@@ -129,7 +142,10 @@ export default {
       const tripType = (document.querySelector('input[name="tripType"]:checked')?.value || '').replace(/\s+/g,'_');
       const pickupLocation = document.getElementById('location')?.value || '';
       const sel = window.selectedVehicle || {};
-      const payload = { name, phone, pickupLocation, dropoffLocation: '', pickupDate: window.selectedPickupDate, pickupTime, tripType, vehicleId: sel.id || null, vehicleName: sel.name || null, vehicleRate: sel.rate || 0, price: sel.rate || 0 };
+      const baseRate = Number(sel.rate || 0);
+      const discRate = Number(sel.discounted || 0);
+      const finalRate = discRate>0 && discRate<baseRate ? discRate : baseRate;
+      const payload = { name, phone, pickupLocation, dropoffLocation: '', pickupDate: window.selectedPickupDate, pickupTime, tripType, vehicleId: sel.id || null, vehicleName: sel.name || null, vehicleRate: baseRate, price: finalRate };
       try {
         const r = await fetch(api('/api/bookings'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) throw new Error('HTTP '+r.status);
