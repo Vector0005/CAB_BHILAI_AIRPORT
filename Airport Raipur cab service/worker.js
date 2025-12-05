@@ -195,7 +195,9 @@ export default {
         }
         if (pathname === '/api/vehicles' && method === 'GET') {
           const r = await supabase('/vehicles?select=*', { method: 'GET' }, false);
-          return r;
+          if (r.status !== 200) return r;
+          const data = await r.json().catch(() => []);
+          return json({ vehicles: Array.isArray(data) ? data : [] });
         }
         if (pathname === '/api/vehicles' && method === 'POST') {
           const body = await readBody();
@@ -215,7 +217,9 @@ export default {
         }
         if (pathname === '/api/drivers' && method === 'GET') {
           const r = await supabase('/drivers?select=*', { method: 'GET' }, false);
-          return r;
+          if (r.status !== 200) return r;
+          const data = await r.json().catch(() => []);
+          return json({ drivers: Array.isArray(data) ? data : [] });
         }
         if (pathname === '/api/drivers' && method === 'POST') {
           const body = await readBody();
