@@ -5,8 +5,5 @@
   "assets": {
     "directory": "Airport Raipur cab service"
   },
-  "vars": {
-    "API_BASE_URL": ""
-  },
   "send_metrics": false
 }
