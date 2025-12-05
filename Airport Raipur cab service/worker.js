@@ -194,20 +194,14 @@ export default {
           return r;
         }
         if (pathname === '/api/vehicles' && method === 'GET') {
-          let r = await supabase('/vehicles?select=*', { method: 'GET' }, false);
-          let data = [];
-          if (r.status === 200) {
-            try { data = await r.json(); } catch (_) { data = []; }
-          }
-          if (!Array.isArray(data) || data.length === 0) {
-            const r2 = await supabase('/vehicles?select=*', { method: 'GET' }, true);
-            if (r2.status === 200) { try { data = await r2.json(); } catch (_) {} }
-          }
+          const r = await supabase('/vehicles?select=*', { method: 'GET' }, true);
+          const data = r.status === 200 ? await r.json().catch(() => []) : [];
           return json({ vehicles: Array.isArray(data) ? data : [] });
         }
         if (pathname === '/api/vehicles' && method === 'POST') {
           const body = await readBody();
-          const r = await supabase('/vehicles', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(body || {}) }, true);
+          const payload = { id: (crypto && typeof crypto.randomUUID==='function') ? crypto.randomUUID() : String(Date.now()), name: String(body?.name || ''), rate: Number(body?.rate || 0), active: (body?.active ?? true) };
+          const r = await supabase('/vehicles', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
           return r;
         }
         if (pathname.startsWith('/api/vehicles/') && method === 'PATCH') {

@@ -1543,6 +1543,8 @@
                     if (!name || isNaN(rate)) return;
                     try {
                         await fetch(getApiUrl('/api/vehicles'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, rate }) });
+                        if (nameEl) nameEl.value='';
+                        if (rateEl) rateEl.value='';
                         await (async function(){ const r=await fetch(getApiUrl('/api/vehicles')); const d=await r.json(); var rows=d.vehicles||[]; var tbody=document.getElementById('vehiclesTableBody'); if(tbody) tbody.innerHTML=rows.map(function(v){ 
                             const isActive = v.active;
                             const toggleButtonClass = isActive ? 'btn-disable' : 'btn-enable';
@@ -1563,17 +1565,17 @@
             } else if (editVehicle) {
                 e.preventDefault();
                 if (!(window.adminPanel && typeof window.adminPanel.updateVehicle==='function')) {
-                    var id=e.target.dataset.id; var newRate=parseFloat(prompt('Enter new rate (₹):')||''); if (isNaN(newRate)) return; try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rate:newRate }) }); } catch(_){}
+                    var id=e.target.dataset.id; var newRate=parseFloat(prompt('Enter new rate (₹):')||''); if (isNaN(newRate)) return; try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rate:newRate }) }); await fillVehicles(); } catch(_){}
                 }
             } else if (toggleVehicle) {
                 e.preventDefault();
                 if (!(window.adminPanel && typeof window.adminPanel.updateVehicle==='function')) {
-                    var id=e.target.dataset.id; var active=e.target.dataset.active==='true'; try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ active: !active }) }); } catch(_){}
+                    var id=e.target.dataset.id; var active=e.target.dataset.active==='true'; try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ active: !active }) }); await fillVehicles(); } catch(_){}
                 }
             } else if (deleteVehicle) {
                 e.preventDefault();
                 if (!(window.adminPanel && typeof window.adminPanel.deleteVehicle==='function')) {
-                    var id=e.target.dataset.id; if(!confirm('Delete vehicle?')) return; try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'DELETE' }); } catch(_){}
+                    var id=e.target.dataset.id; if(!confirm('Delete vehicle?')) return; try { await fetch(getApiUrl('/api/vehicles/'+id), { method:'DELETE' }); await fillVehicles(); } catch(_){}
                 }
             } else if (e.target && e.target.classList && e.target.classList.contains('edit-driver')) {
                 e.preventDefault();
