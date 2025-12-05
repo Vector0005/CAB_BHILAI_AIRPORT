@@ -1311,7 +1311,32 @@
                         '</div></td>'+
                         '</tr>'
                     }).join('');
-                }catch(e){}
+                }catch(e){
+                    try{
+                        const u=API_CONFIG.supabaseUrl; const k=API_CONFIG.supabaseAnonKey;
+                        const r=await fetch(u+'/rest/v1/vehicles?select=*', { headers:{ apikey:k, Authorization:'Bearer '+k }});
+                        const rows= r.ok ? await r.json() : [];
+                        if (window.adminPanel) { window.adminPanel.vehicles = rows; }
+                        const tbody=document.getElementById('vehiclesTableBody');
+                        if(!tbody) return;
+                        if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">No vehicles found</td></tr>'; return; }
+                        tbody.innerHTML=rows.map(function(v){
+                            const isActive = v.active;
+                            const toggleButtonClass = isActive ? 'btn-disable' : 'btn-enable';
+                            const toggleButtonText = isActive ? '⏸️ Disable' : '✅ Enable';
+                            return '<tr>'+
+                            '<td>'+(v.name||'')+'</td>'+
+                            '<td>₹'+Number(v.rate||v.vehicle_rate||0)+'</td>'+
+                            '<td><span class="status-badge status-'+(isActive?'available':'unavailable')+'">'+(isActive?'Active':'Inactive')+'</span></td>'+
+                            '<td><div class="action-buttons">'+
+                            '<button class="btn btn-sm btn-warning edit-vehicle" data-id="'+v.id+'">Edit Rate</button>'+
+                            '<button class="btn btn-sm '+toggleButtonClass+' toggle-vehicle" data-id="'+v.id+'" data-active="'+(v.active)+'">'+toggleButtonText+'</button>'+
+                            '<button class="btn btn-sm btn-danger delete-vehicle" data-id="'+v.id+'">Delete</button>'+
+                            '</div></td>'+
+                            '</tr>'
+                        }).join('');
+                    }catch(_){}
+                }
             }
             async function fillDrivers(){
                 try{
