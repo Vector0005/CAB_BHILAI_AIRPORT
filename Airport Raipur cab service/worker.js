@@ -194,9 +194,15 @@ export default {
           return r;
         }
         if (pathname === '/api/vehicles' && method === 'GET') {
-          const r = await supabase('/vehicles?select=*', { method: 'GET' }, false);
-          if (r.status !== 200) return r;
-          const data = await r.json().catch(() => []);
+          let r = await supabase('/vehicles?select=*', { method: 'GET' }, false);
+          let data = [];
+          if (r.status === 200) {
+            try { data = await r.json(); } catch (_) { data = []; }
+          }
+          if (!Array.isArray(data) || data.length === 0) {
+            const r2 = await supabase('/vehicles?select=*', { method: 'GET' }, true);
+            if (r2.status === 200) { try { data = await r2.json(); } catch (_) {} }
+          }
           return json({ vehicles: Array.isArray(data) ? data : [] });
         }
         if (pathname === '/api/vehicles' && method === 'POST') {
