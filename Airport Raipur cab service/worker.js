@@ -260,7 +260,9 @@ export default {
         }
         if (pathname === '/api/bookings' && method === 'POST') {
           const body = await readBody();
-          const payload = { name: body?.name || '', phone: body?.phone || '', email: body?.email || 'customer@noemail.com', pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', price: body?.price || 0, status: 'PENDING', vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
+          const id = (crypto && typeof crypto.randomUUID==='function') ? crypto.randomUUID() : String(Date.now());
+          const bn = 'BN-' + Date.now();
+          const payload = { id, booking_number: bn, name: body?.name || '', phone: body?.phone || '', email: body?.email || 'customer@noemail.com', pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
           const r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
           return r;
         }
