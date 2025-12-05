@@ -1153,7 +1153,40 @@
                         }).join('');
                         tbody.innerHTML=rows||'<tr><td colspan="8" class="loading">No recent bookings</td></tr>';
                     }
-                }catch(e){}
+                }catch(e){
+                    try{
+                        const u=API_CONFIG.supabaseUrl; const k=API_CONFIG.supabaseAnonKey;
+                        const r1=await fetch(u+'/rest/v1/bookings?select=*', { headers:{ apikey:k, Authorization:'Bearer '+k }});
+                        const br= r1.ok ? await r1.json() : [];
+                        const r2=await fetch(u+'/rest/v1/drivers?select=count', { headers:{ apikey:k, Authorization:'Bearer '+k }});
+                        const dc = r2.ok ? (await r2.json()) : [];
+                        var set=function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
+                        set('totalBookings', Array.isArray(br)?br.length:0);
+                        set('pendingBookings', Array.isArray(br)?br.filter(function(x){return (x.status||'').toLowerCase()==='pending'}).length:0);
+                        set('activeDrivers', Array.isArray(dc)&&dc[0]&&dc[0].count?dc[0].count:0);
+                        var tbody=document.getElementById('recentBookingsBody');
+                        if(tbody){
+                            var rows=(Array.isArray(br)?br.slice(0,10):[]).map(function(b){
+                                var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
+                                var timeText=b.pickup_time||'';
+                                var loc=b.pickup_location||'';
+                                var status=(b.status||'').toLowerCase();
+                                return '\n<tr>'+
+                                   '<td>'+b.id+'</td>'+
+                                   '<td>'+(b.name||b.customerName||'')+'</td>'+
+                                   '<td>'+dateText+'</td>'+
+                                   '<td>'+timeText+'</td>'+
+                                   '<td>'+loc+'</td>'+
+                                   '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
+                                   '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
+                                   '<td>₹'+Number(b.price||b.amount||0)+'</td>'+
+                                   '<td><button class="btn btn-sm btn-primary view-booking" data-id="'+b.id+'">View</button></td>'+
+                                '</tr>';
+                            }).join('');
+                            tbody.innerHTML=rows||'<tr><td colspan="8" class="loading">No recent bookings</td></tr>';
+                        }
+                    }catch(_){}
+                }
             }
             async function fillBookings(){
                 try{
@@ -1189,7 +1222,27 @@
                     
                     // Apply current filter
                     applyBookingFilter();
-                }catch(e){}
+                }catch(e){
+                    try{
+                        const u=API_CONFIG.supabaseUrl; const k=API_CONFIG.supabaseAnonKey;
+                        const r=await fetch(u+'/rest/v1/bookings?select=*', { headers:{ apikey:k, Authorization:'Bearer '+k }});
+                        const rows= r.ok ? await r.json() : [];
+                        window.allBookings = rows;
+                        if (window.adminPanel) { window.adminPanel.bookings = rows.map(function(b){ return {
+                            id: b.id,
+                            customerName: b.name||b.customerName||'',
+                            phoneNumber: b.phone||b.phoneNumber||'',
+                            date: b.pickupDate||b.pickup_date||'',
+                            timeSlot: b.pickupTime||b.pickup_time||b.timeSlot||'',
+                            tripType: (b.tripType||b.trip_type||''),
+                            pickupLocation: b.pickupLocation||b.pickup_location||'',
+                            amount: Number(b.price||b.amount||0),
+                            status: (b.status||'').toLowerCase(),
+                            createdAt: b.createdAt||b.created_at||''
+                        }; }); if (typeof window.adminPanel.renderBookingsTable==='function') { window.adminPanel.renderBookingsTable(); } }
+                        applyBookingFilter();
+                    }catch(_){}
+                }
             }
 
             function applyBookingFilter() {
@@ -1292,7 +1345,40 @@
                         '</div></td>'+
                         '</tr>'
                     }).join('');
-                }catch(e){}
+                }catch(e){
+                    try{
+                        const u=API_CONFIG.supabaseUrl; const k=API_CONFIG.supabaseAnonKey;
+                        const r=await fetch(u+'/rest/v1/drivers?select=*', { headers:{ apikey:k, Authorization:'Bearer '+k }});
+                        const rows= r.ok ? await r.json() : [];
+                        if (window.adminPanel) { window.adminPanel.drivers = rows.map(function(dr){ return {
+                            id: dr.id,
+                            name: dr.name,
+                            email: dr.email,
+                            phone: dr.phone,
+                            vehicleNumber: dr.vehicleNo||dr.vehicle_no||dr.vehicle,
+                            vehicleType: dr.vehicle||'',
+                            isAvailable: ((dr.status||'').toUpperCase()==='AVAILABLE')
+                        }; }); }
+                        const tbody=document.getElementById('driversTableBody');
+                        if(!tbody) return;
+                        tbody.innerHTML=rows.map(function(dr){
+                            return '<tr>'+
+                            '<td>'+dr.id+'</td>'+
+                            '<td>'+dr.name+'</td>'+
+                            '<td>'+dr.email+'</td>'+
+                            '<td>'+dr.phone+'</td>'+
+                            '<td>'+((dr.vehicleNo||dr.vehicle_no||dr.vehicle)||'')+'</td>'+
+                            '<td>'+((dr.vehicle)||'')+'</td>'+
+                            '<td><span class="status-badge status-'+((dr.status||'').toUpperCase()==='AVAILABLE'?'available':'unavailable')+'">'+(((dr.status||'').toUpperCase()==='AVAILABLE')?'Available':'Unavailable')+'</span></td>'+
+                            '<td><div class="action-buttons">'+
+                            '<button class="btn btn-sm btn-primary edit-driver" data-id="'+dr.id+'">Edit</button>'+
+                            '<button class="btn btn-sm btn-warning toggle-driver" data-id="'+dr.id+'">Toggle</button>'+
+                            '<button class="btn btn-sm btn-danger delete-driver" data-id="'+dr.id+'">Delete</button>'+
+                            '</div></td>'+
+                            '</tr>'
+                        }).join('');
+                    }catch(_){}
+                }
             }
             async function fillAvailability(){
                 try{
@@ -1338,7 +1424,32 @@
                         '</tr>'
                     }).join('');
                 }catch(e){
-                    console.error('Error loading availability:', e);
+                    try{
+                        const u=API_CONFIG.supabaseUrl; const k=API_CONFIG.supabaseAnonKey;
+                        const r=await fetch(u+'/rest/v1/availability?select=*', { headers:{ apikey:k, Authorization:'Bearer '+k }});
+                        const rows= r.ok ? await r.json() : [];
+                        const tbody=document.getElementById('availabilityTableBody');
+                        if(!tbody) return;
+                        const filteredRows = rows.filter(function(a){
+                            const m=a.morningAvailable??a.morning_available;
+                            const e=a.eveningAvailable??a.evening_available;
+                            return !(m && e);
+                        });
+                        if (filteredRows.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">All dates are fully available - no management needed</td></tr>'; return; }
+                        tbody.innerHTML=filteredRows.map(function(a){
+                            const dt=new Date(a.date);
+                            const m=a.morningAvailable??a.morning_available;
+                            const e=a.eveningAvailable??a.evening_available;
+                            return '<tr>'+
+                            '<td>'+dt.toLocaleDateString()+'</td>'+
+                            '<td><span class="availability-status '+(m?'available':'unavailable')+'">'+(m?'Available':'Booked')+'</span></td>'+
+                            '<td><span class="availability-status '+(e?'available':'unavailable')+'">'+(e?'Available':'Booked')+'</span></td>'+
+                            '<td><button class="btn btn-sm btn-primary edit-availability" data-date="'+a.date+'">Edit</button>'+
+                            '<button class="btn btn-sm btn-success" data-action="toggle-morning" data-date="'+a.date+'">'+(m?'Close Morning':'Open Morning')+'</button>'+
+                            '<button class="btn btn-sm btn-warning" data-action="toggle-evening" data-date="'+a.date+'">'+(e?'Close Evening':'Open Evening')+'</button></td>'+
+                            '</tr>'
+                        }).join('');
+                    }catch(_){}
                 }
             }
         

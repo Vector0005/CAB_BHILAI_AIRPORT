@@ -123,9 +123,27 @@ class AirportBookingSystem {
                 this.generateCalendar();
             }
         } catch (error) {
-            console.error('Error loading availability:', error);
-            // Fallback to mock data if API fails
-            this.generateMockAvailability();
+            try {
+                const supabaseUrl = 'https://vkorkcyltikzfounowqh.supabase.co';
+                const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrb3JrY3lsdGlremZvdW5vd3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MzE4MTEsImV4cCI6MjA3OTIwNzgxMX0.C6DYciv1Nmsnyby5PO1fMFGigOZ57O1kOhQbKyzm_PM';
+                const params = new URLSearchParams({ select: '*' });
+                const r2 = await fetch(`${supabaseUrl}/rest/v1/availability?${params.toString()}`, { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } });
+                if (r2.ok) {
+                    const rows = await r2.json();
+                    this.availabilityData = rows.reduce((acc, item) => {
+                        const key = this.formatDateLocal(new Date(item.date));
+                        const morning = item.morningAvailable ?? item.morning_available ?? true;
+                        const evening = item.eveningAvailable ?? item.evening_available ?? true;
+                        acc[key] = { morning: !!morning, evening: !!evening };
+                        return acc;
+                    }, {});
+                    this.generateCalendar();
+                    return;
+                }
+                this.generateMockAvailability();
+            } catch (e2) {
+                this.generateMockAvailability();
+            }
         }
     }
 
