@@ -361,6 +361,15 @@ class AirportBookingSystem {
         }
     }
 
+    showNotice(type, text) {
+        const el = document.getElementById('notice');
+        if (!el) return;
+        el.classList.remove('hidden', 'success', 'error');
+        el.classList.add(type === 'error' ? 'error' : 'success', 'show');
+        el.textContent = text;
+        setTimeout(() => { try { el.classList.remove('show'); el.classList.add('hidden'); } catch(_){} }, 4000);
+    }
+
     updateTimeSlotAvailability() {
         if (!this.selectedDate) return;
 
@@ -449,24 +458,58 @@ class AirportBookingSystem {
 
         if (navigator.geolocation) {
             try {
-                const position = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+                let permState = '';
+                try {
+                    const p = await navigator.permissions.query({ name: 'geolocation' });
+                    permState = p && p.state ? p.state : '';
+                } catch(_) {}
+                if (permState === 'denied') {
+                    this.showNotice('error', 'Location permission is blocked. Enable it in browser settings.');
+                    locationBtn.textContent = 'Get Current Location';
+                    locationBtn.disabled = false;
+                    return;
+                }
+
+                const tryOnce = (opts) => new Promise((resolve, reject) => {
+                    navigator.geolocation.getCurrentPosition(resolve, reject, opts);
                 });
+                const watchForFix = (opts, ms = 8000) => new Promise((resolve, reject) => {
+                    let timer;
+                    const id = navigator.geolocation.watchPosition(pos => {
+                        clearTimeout(timer);
+                        try { navigator.geolocation.clearWatch(id); } catch(_){}
+                        resolve(pos);
+                    }, () => {}, opts);
+                    timer = setTimeout(() => {
+                        try { navigator.geolocation.clearWatch(id); } catch(_){}
+                        reject(new Error('watch_timeout'));
+                    }, ms);
+                });
+
+                let position;
+                try {
+                    position = await tryOnce({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+                } catch (e1) {
+                    try {
+                        position = await tryOnce({ enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 });
+                    } catch (e2) {
+                        position = await watchForFix({ enableHighAccuracy: false }, 8000);
+                    }
+                }
 
                 const { latitude, longitude } = position.coords;
                 const locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                
                 locationInput.value = locationText;
                 this.bookingData.pickupLocation = locationText;
-                
+                this.showNotice('success', 'Location captured');
                 locationBtn.textContent = 'Location Found';
                 setTimeout(() => {
                     locationBtn.textContent = 'Get Current Location';
                     locationBtn.disabled = false;
-                }, 2000);
+                }, 1200);
 
             } catch (error) {
-                console.error('Error getting location:', error);
+                this.showNotice('error', 'Unable to fetch location. Paste a Google Maps link or enter address.');
                 locationBtn.textContent = 'Location Failed';
                 setTimeout(() => {
                     locationBtn.textContent = 'Get Current Location';
