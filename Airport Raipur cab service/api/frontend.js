@@ -450,7 +450,7 @@ class AirportBookingSystem {
         if (navigator.geolocation) {
             try {
                 const position = await new Promise((resolve, reject) => {
-                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                    navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
                 });
 
                 const { latitude, longitude } = position.coords;

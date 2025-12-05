@@ -19,6 +19,15 @@
         function getApiUrl(endpoint) {
             return API_CONFIG.baseUrl + endpoint;
         }
+        function formatLocation(loc) {
+            var s = String(loc || '').trim();
+            if (!s) return '';
+            var isUrl = /^https?:\/\//i.test(s) || /google\.com\/maps|maps\.app\.goo\.gl/i.test(s);
+            var isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(s);
+            var href = isUrl ? s : (isLatLng ? ('https://www.google.com/maps?q=' + encodeURIComponent(s)) : '');
+            if (href) return '<a href="' + href + '" target="_blank" rel="noopener">' + (isUrl ? 'Open Map' : s) + '</a>';
+            return s;
+        }
     </script>
     <style>
         * {
@@ -1144,7 +1153,7 @@
                                '<td>'+(b.name||b.customerName||'')+'</td>'+
                                '<td>'+dateText+'</td>'+
                                '<td>'+timeText+'</td>'+
-                               '<td>'+loc+'</td>'+
+                               '<td>'+formatLocation(loc)+'</td>'+
                                '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                                '<td>₹'+Number(b.price||b.amount||0)+'</td>'+
@@ -1176,7 +1185,7 @@
                                    '<td>'+(b.name||b.customerName||'')+'</td>'+
                                    '<td>'+dateText+'</td>'+
                                    '<td>'+timeText+'</td>'+
-                                   '<td>'+loc+'</td>'+
+                                   '<td>'+formatLocation(loc)+'</td>'+
                                    '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                    '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                                    '<td>₹'+Number(b.price||b.amount||0)+'</td>'+
@@ -1278,7 +1287,7 @@
                     '<td>'+dateText+'</td>'+
                     '<td>'+timeText+'</td>'+
                     '<td>'+((b.trip_type||'').replace('_',' '))+'</td>'+
-                    '<td>'+(b.pickup_location||'')+'</td>'+
+                    '<td>'+formatLocation(b.pickup_location||'')+'</td>'+
                     '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                     '<td>₹'+Number(b.price||0)+'</td>'+
                     '<td>'+actions+'</td>'+
@@ -1526,7 +1535,7 @@
                                 '<div><strong>Date:</strong> '+dateText+'</div>'+
                                 '<div><strong>Time:</strong> '+timeText+'</div>'+
                                 '<div><strong>Trip:</strong> '+trip+'</div>'+
-                                '<div><strong>Location:</strong> '+(b.pickup_location||'')+'</div>'+
+                                '<div><strong>Location:</strong> '+formatLocation(b.pickup_location||'')+'</div>'+
                                 '<div><strong>Amount:</strong> ₹'+Number(b.price||0)+'</div>'+
                                 '<div><strong>Status:</strong> '+(b.status||'')+'</div>';
                             modal.style.display='flex';
@@ -2267,7 +2276,7 @@
                                      '<div><strong>Date:</strong> '+dateText+'</div>'+
                                      '<div><strong>Time:</strong> '+timeText+'</div>'+
                                      '<div><strong>Trip:</strong> '+(b?((b.trip_type||'').replace('_',' ')):'')+'</div>'+
-                                     '<div><strong>Location:</strong> '+(b?(b.pickup_location||''):'')+'</div>'+
+                                     '<div><strong>Location:</strong> '+(b?formatLocation(b.pickup_location||''):'')+'</div>'+
                                      '<div><strong>Amount:</strong> ₹'+(b?Number(b.price||0):0)+'</div>';
                 } catch(_) {
                     body.textContent = 'Proceed with this action?';
