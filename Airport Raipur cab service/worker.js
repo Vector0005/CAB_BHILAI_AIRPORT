@@ -293,6 +293,31 @@ export default {
           }
           const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
           const r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+          // Update availability slot for the booking date
+          try {
+            const dt = new Date(payload.pickup_date);
+            dt.setHours(0,0,0,0);
+            const isoDate = dt.toISOString();
+            const slot = String(payload.pickup_time || '').toLowerCase();
+            const bookMorning = /morning/.test(slot);
+            const bookEvening = /evening/.test(slot);
+            if (bookMorning || bookEvening) {
+              // Fetch existing availability row
+              const aR = await supabase('/availability?select=*&date=eq.' + encodeURIComponent(isoDate), { method: 'GET' }, true);
+              const rows = aR.status === 200 ? await aR.json().catch(() => []) : [];
+              if (!Array.isArray(rows) || rows.length === 0) {
+                // Create availability row with other slot available
+                const aid = (crypto && typeof crypto.randomUUID==='function') ? crypto.randomUUID() : String(Date.now());
+                const aPayload = { id: aid, date: isoDate, morning_available: !bookMorning, evening_available: !bookEvening };
+                await supabase('/availability', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(aPayload) }, true);
+              } else {
+                const update = {};
+                if (bookMorning) update.morning_available = false;
+                if (bookEvening) update.evening_available = false;
+                await supabase('/availability?date=eq.' + encodeURIComponent(isoDate), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
+              }
+            }
+          } catch (_) {}
           return r;
         }
         if (pathname === '/api/admin/dashboard' && method === 'GET') {
