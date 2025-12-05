@@ -262,7 +262,36 @@ export default {
           const body = await readBody();
           const id = (crypto && typeof crypto.randomUUID==='function') ? crypto.randomUUID() : String(Date.now());
           const bn = 'BN-' + Date.now();
-          const payload = { id, booking_number: bn, name: body?.name || '', phone: body?.phone || '', email: body?.email || 'customer@noemail.com', pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
+          const name = body?.name || '';
+          const email = body?.email || 'customer@noemail.com';
+          const phone = body?.phone || '';
+          let userId = String(body?.userId || '').trim();
+          if (!userId) {
+            let found = '';
+            if (email) {
+              const r1 = await supabase('/users?select=id&email=eq.' + encodeURIComponent(email), { method: 'GET' }, true);
+              const rows1 = r1.status === 200 ? await r1.json().catch(() => []) : [];
+              if (Array.isArray(rows1) && rows1[0] && rows1[0].id) found = rows1[0].id;
+            }
+            if (!found && phone) {
+              const r2 = await supabase('/users?select=id&phone=eq.' + encodeURIComponent(phone), { method: 'GET' }, true);
+              const rows2 = r2.status === 200 ? await r2.json().catch(() => []) : [];
+              if (Array.isArray(rows2) && rows2[0] && rows2[0].id) found = rows2[0].id;
+            }
+            userId = found;
+            if (!userId) {
+              const newUserId = (crypto && typeof crypto.randomUUID==='function') ? crypto.randomUUID() : String(Date.now());
+              const uPayload = { id: newUserId, email, password: 'TEMP', name: name || 'Customer', phone, role: 'CUSTOMER' };
+              const ru = await supabase('/users', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(uPayload) }, true);
+              if (ru.status === 201 || ru.status === 200) {
+                const j = await ru.json().catch(() => []);
+                userId = Array.isArray(j) && j[0] && j[0].id ? j[0].id : newUserId;
+              } else {
+                return ru;
+              }
+            }
+          }
+          const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
           const r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
           return r;
         }
