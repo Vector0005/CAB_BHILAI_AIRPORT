@@ -1294,6 +1294,7 @@
                     if (window.adminPanel) { window.adminPanel.vehicles = rows; }
                     const tbody=document.getElementById('vehiclesTableBody');
                     if(!tbody) return;
+                    if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">No vehicles found</td></tr>'; return; }
                     tbody.innerHTML=rows.map(function(v){
                         const isActive = v.active;
                         const toggleButtonClass = isActive ? 'btn-disable' : 'btn-enable';
@@ -1329,6 +1330,7 @@
                     }; }); }
                     const tbody=document.getElementById('driversTableBody');
                     if(!tbody) return;
+                    if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="8" class="loading">No drivers found</td></tr>'; return; }
                     tbody.innerHTML=rows.map(function(dr){
                         return '<tr>'+
                         '<td>'+dr.id+'</td>'+
@@ -1361,6 +1363,7 @@
                         }; }); }
                         const tbody=document.getElementById('driversTableBody');
                         if(!tbody) return;
+                        if (!Array.isArray(rows) || rows.length===0) { tbody.innerHTML = '<tr><td colspan="8" class="loading">No drivers found</td></tr>'; return; }
                         tbody.innerHTML=rows.map(function(dr){
                             return '<tr>'+
                             '<td>'+dr.id+'</td>'+
