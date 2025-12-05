@@ -116,7 +116,9 @@ body {
     font-weight: 600;
     color: #64748b;
     font-size: 14px;
-    padding: 10px 0;
+    padding: 4px;
+    border-radius: 12px;
+    border: 2px solid transparent;
 }
 
 .calendar-day {
@@ -133,6 +135,7 @@ body {
     border: 2px solid transparent;
     text-align: center;
     padding: 4px;
+    overflow: hidden;
 }
 
 .calendar-day:hover {
@@ -152,6 +155,9 @@ body {
     opacity: 0.95;
     font-weight: 600;
     margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .calendar-day.available {
