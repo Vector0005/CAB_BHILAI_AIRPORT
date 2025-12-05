@@ -5,5 +5,8 @@
   "assets": {
     "directory": "Airport Raipur cab service"
   },
+  "vars": {
+    "SUPABASE_URL": "https://vkorkcyltikzfounowqh.supabase.co"
+  },
   "send_metrics": false
 }
