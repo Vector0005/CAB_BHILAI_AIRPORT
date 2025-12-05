@@ -216,7 +216,10 @@ export default {
           return r;
         }
         if (pathname === '/api/drivers' && method === 'GET') {
-          const r = await supabase('/drivers?select=*', { method: 'GET' }, false);
+          let r = await supabase('/drivers?select=*', { method: 'GET' }, false);
+          if (r.status !== 200) {
+            r = await supabase('/drivers?select=*', { method: 'GET' }, true);
+          }
           if (r.status !== 200) return r;
           const data = await r.json().catch(() => []);
           return json({ drivers: Array.isArray(data) ? data : [] });
