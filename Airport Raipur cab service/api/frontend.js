@@ -300,9 +300,10 @@ class AirportBookingSystem {
             }
 
             dayElement.classList.add(status);
+            const displayText = (!isPastDate && status === 'partial') ? String(statusText).replace(' ', '<br>') : (isPastDate ? '' : statusText);
             dayElement.innerHTML = `
                 <div class="calendar-day-number">${day}</div>
-                <div class="calendar-day-status">${isPastDate ? '' : statusText}</div>
+                <div class="calendar-day-status">${displayText}</div>
             `;
 
             if (!isPastDate) {

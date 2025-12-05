@@ -151,13 +151,12 @@ body {
 
 .calendar-day-status {
     font-size: 11px;
-    line-height: 1.1;
+    line-height: 1.05;
     opacity: 0.95;
     font-weight: 600;
     margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    text-align: center;
 }
 
 .calendar-day.available {
