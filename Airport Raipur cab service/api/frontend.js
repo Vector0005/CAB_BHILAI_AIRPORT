@@ -170,70 +170,79 @@ class AirportBookingSystem {
         const nativeSelect = document.getElementById('vehicleSelect');
         const rateDisplay = document.getElementById('vehicleRateDisplay');
         let promosMap = new Map();
-        try {
-            const pr = await fetch(`${this.API_BASE_URL}/promos`);
-            const pj = pr.ok ? await pr.json() : { promos: [] };
-            (pj.promos||[]).forEach(p => { if (/^VEH_/i.test(p.code||'')) { promosMap.set(String(p.code), p); } });
-        } catch(_) {}
-        if (!menu || !dropdownBtn) return;
+        (async () => {
+            try {
+                const pr = await fetch(`${this.API_BASE_URL}/promos`);
+                const pj = pr.ok ? await pr.json() : { promos: [] };
+                (pj.promos||[]).forEach(p => { if (/^VEH_/i.test(p.code||'')) { promosMap.set(String(p.code), p); } });
+            } catch(_) {}
+            if (!menu || !dropdownBtn) return;
 
-        menu.innerHTML = '';
-        vehicles.forEach(v => {
-            const opt = document.createElement('div');
-            opt.className = 'dropdown-option';
-            opt.setAttribute('role', 'option');
-            opt.setAttribute('data-id', v.id);
-            opt.setAttribute('data-name', v.name);
-            opt.setAttribute('data-rate', String(v.rate));
-            const promo = promosMap.get('VEH_'+(v.id||''));
-            const discounted = promo && promo.active ? Math.max(0, Number(v.rate) - Number(promo.discount_flat||0)) : null;
-            const rateLabel = discounted ? `<span class="opt-rate"><span class="rate-original">₹${v.rate}</span> <span class="rate-discount">₹${discounted}</span></span>` : `<span class="opt-rate">₹${v.rate}</span>`;
-            opt.innerHTML = `<span>${v.name}</span>${rateLabel}`;
-            opt.addEventListener('click', () => {
-                dropdownBtn.textContent = v.name;
-                dropdownBtn.setAttribute('aria-expanded', 'false');
-                menu.classList.add('hidden');
-                this.bookingData.vehicleId = v.id;
-                this.bookingData.vehicleName = v.name;
-                this.bookingData.vehicleRate = v.rate;
-                const promoSel = promosMap.get('VEH_'+(v.id||''));
-                const discountedSel = promoSel && promoSel.active ? Math.max(0, Number(v.rate) - Number(promoSel.discount_flat||0)) : null;
-                this.bookingData.vehicleDiscountedRate = discountedSel || null;
-                if (rateDisplay) {
-                    rateDisplay.innerHTML = discountedSel ? `<span class="rate-original">₹${v.rate}</span> <span class="rate-discount">₹${discountedSel}</span>` : `₹${v.rate}`;
-                }
-                if (nativeSelect) nativeSelect.value = v.id;
-            });
-            menu.appendChild(opt);
-        });
-
-        if (nativeSelect) {
-            nativeSelect.innerHTML = '';
+            menu.innerHTML = '';
             vehicles.forEach(v => {
-                const o = document.createElement('option');
-                o.value = v.id;
-                const promo2 = promosMap.get('VEH_'+(v.id||''));
-                const disc2 = promo2 && promo2.active ? Math.max(0, Number(v.rate) - Number(promo2.discount_flat||0)) : null;
-                o.textContent = disc2 ? `${v.name} (₹${v.rate} → ₹${disc2})` : `${v.name} (₹${v.rate})`;
-                nativeSelect.appendChild(o);
-            });
-            nativeSelect.addEventListener('change', (e) => {
-                const id = e.target.value;
-                const v = vehicles.find(x => String(x.id) === String(id));
-                if (v) {
+                const opt = document.createElement('div');
+                opt.className = 'dropdown-option';
+                opt.setAttribute('role', 'option');
+                opt.setAttribute('data-id', v.id);
+                opt.setAttribute('data-name', v.name);
+                opt.setAttribute('data-rate', String(v.rate));
+                const base = Number(v.rate);
+                const builtInDisc = v.discounted_rate != null ? Number(v.discounted_rate) : null;
+                const promo = promosMap.get('VEH_'+(v.id||''));
+                const discounted = builtInDisc != null ? builtInDisc : (promo && promo.active ? Math.max(0, base - Number(promo.discount_flat||0)) : null);
+                const rateLabel = discounted != null ? `<span class="opt-rate"><span class="rate-original">₹${base}</span> <span class="rate-discount">₹${discounted}</span></span>` : `<span class="opt-rate">₹${base}</span>`;
+                opt.innerHTML = `<span>${v.name}</span>${rateLabel}`;
+                opt.addEventListener('click', () => {
                     dropdownBtn.textContent = v.name;
+                    dropdownBtn.setAttribute('aria-expanded', 'false');
+                    menu.classList.add('hidden');
                     this.bookingData.vehicleId = v.id;
                     this.bookingData.vehicleName = v.name;
-                    this.bookingData.vehicleRate = v.rate;
-                    const promoSel2 = promosMap.get('VEH_'+(v.id||''));
-                    const discountedSel2 = promoSel2 && promoSel2.active ? Math.max(0, Number(v.rate) - Number(promoSel2.discount_flat||0)) : null;
-                    this.bookingData.vehicleDiscountedRate = discountedSel2 || null;
+                    this.bookingData.vehicleRate = base;
+                    const promoSel = promosMap.get('VEH_'+(v.id||''));
+                    const builtInSel = v.discounted_rate != null ? Number(v.discounted_rate) : null;
+                    const discountedSel = builtInSel != null ? builtInSel : (promoSel && promoSel.active ? Math.max(0, base - Number(promoSel.discount_flat||0)) : null);
+                    this.bookingData.vehicleDiscountedRate = discountedSel || null;
                     if (rateDisplay) {
-                        rateDisplay.innerHTML = discountedSel2 ? `<span class="rate-original">₹${v.rate}</span> <span class="rate-discount">₹${discountedSel2}</span>` : `₹${v.rate}`;
+                        rateDisplay.innerHTML = discountedSel != null ? `<span class="rate-original">₹${base}</span> <span class="rate-discount">₹${discountedSel}</span>` : `₹${base}`;
                     }
-                }
+                    if (nativeSelect) nativeSelect.value = v.id;
+                });
+                menu.appendChild(opt);
             });
-        }
+
+            if (nativeSelect) {
+                nativeSelect.innerHTML = '';
+                vehicles.forEach(v => {
+                    const o = document.createElement('option');
+                    o.value = v.id;
+                    const base = Number(v.rate);
+                    const builtInDisc2 = v.discounted_rate != null ? Number(v.discounted_rate) : null;
+                    const promo2 = promosMap.get('VEH_'+(v.id||''));
+                    const disc2 = builtInDisc2 != null ? builtInDisc2 : (promo2 && promo2.active ? Math.max(0, base - Number(promo2.discount_flat||0)) : null);
+                    o.textContent = disc2 != null ? `${v.name} (₹${base} → ₹${disc2})` : `${v.name} (₹${base})`;
+                    nativeSelect.appendChild(o);
+                });
+                nativeSelect.addEventListener('change', (e) => {
+                    const id = e.target.value;
+                    const v = vehicles.find(x => String(x.id) === String(id));
+                    if (v) {
+                        dropdownBtn.textContent = v.name;
+                        this.bookingData.vehicleId = v.id;
+                        this.bookingData.vehicleName = v.name;
+                        const base = Number(v.rate);
+                        this.bookingData.vehicleRate = base;
+                        const builtInSel2 = v.discounted_rate != null ? Number(v.discounted_rate) : null;
+                        const promoSel2 = promosMap.get('VEH_'+(v.id||''));
+                        const discountedSel2 = builtInSel2 != null ? builtInSel2 : (promoSel2 && promoSel2.active ? Math.max(0, base - Number(promoSel2.discount_flat||0)) : null);
+                        this.bookingData.vehicleDiscountedRate = discountedSel2 || null;
+                        if (rateDisplay) {
+                            rateDisplay.innerHTML = discountedSel2 != null ? `<span class="rate-original">₹${base}</span> <span class="rate-discount">₹${discountedSel2}</span>` : `₹${base}`;
+                        }
+                    }
+                });
+            }
+        })();
     }
 
     generateMockAvailability() {

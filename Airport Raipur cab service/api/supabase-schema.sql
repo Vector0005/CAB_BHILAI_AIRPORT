@@ -108,6 +108,8 @@ create table if not exists public.vehicles (
   updated_at timestamptz not null default now()
 );
 
+ALTER TABLE public.vehicles ADD COLUMN IF NOT EXISTS discounted_rate numeric;
+
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "allow read vehicles" ON public.vehicles;
 CREATE POLICY "allow read vehicles" ON public.vehicles FOR SELECT TO public USING (active = true);

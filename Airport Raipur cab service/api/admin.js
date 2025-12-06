@@ -108,17 +108,23 @@ class AdminPanel {
             if (e.target && e.target.id === 'addVehicleBtn') {
                 const nameEl = document.getElementById('vehicleNameInput');
                 const rateEl = document.getElementById('vehicleRateInput');
+                const discEl = document.getElementById('vehicleDiscountRateInput');
                 const name = (nameEl?.value || '').trim();
                 const rate = parseFloat(rateEl?.value || '');
+                const disc = parseFloat(discEl?.value || '');
                 if (!name || isNaN(rate)) return this.showNotification('Enter vehicle name and valid rate', 'error');
-                await this.addVehicle(name, rate);
+                await this.addVehicle(name, rate, (!isNaN(disc) && disc > 0 && disc < rate) ? disc : undefined);
                 if (nameEl) nameEl.value = '';
                 if (rateEl) rateEl.value = '';
+                if (discEl) discEl.value = '';
             } else if (e.target && e.target.classList.contains('edit-vehicle')) {
                 const id = e.target.dataset.id;
-                const newRate = parseFloat(prompt('Enter new rate (₹):') || '');
+                const newRate = parseFloat(prompt('Enter new actual rate (₹):') || '');
                 if (isNaN(newRate)) return;
-                await this.updateVehicle(id, { rate: newRate });
+                const discRate = parseFloat(prompt('Enter discounted rate (₹), leave blank to remove:') || '');
+                await this.updateVehicle(id, { rate: newRate, discounted_rate: (!isNaN(discRate) && discRate > 0 && discRate < newRate) ? discRate : null });
+                await this.loadVehicles();
+                this.renderVehiclesTable();
             } else if (e.target && e.target.classList.contains('toggle-vehicle')) {
                 const id = e.target.dataset.id;
                 const active = e.target.dataset.active === 'true';
@@ -500,11 +506,17 @@ class AdminPanel {
 
     async loadVehicles() {
         try {
-            const resp = await fetch(`${this.API_BASE_URL}/vehicles`);
-            const data = await resp.json();
-            this.vehicles = data.vehicles || [];
+            const [vr, pr] = await Promise.all([
+                fetch(`${this.API_BASE_URL}/vehicles`),
+                fetch(`${this.API_BASE_URL}/promos`)
+            ]);
+            const vj = vr.ok ? await vr.json() : { vehicles: [] };
+            const pj = pr.ok ? await pr.json() : { promos: [] };
+            this.vehicles = vj.vehicles || [];
+            this.promos = pj.promos || [];
         } catch (err) {
-            this.vehicles = [];
+            this.vehicles = this.vehicles || [];
+            this.promos = this.promos || [];
         }
     }
 
@@ -512,12 +524,12 @@ class AdminPanel {
 
 
 
-    async addVehicle(name, rate) {
+    async addVehicle(name, rate, discountedRate) {
         try {
             const resp = await fetch(`${this.API_BASE_URL}/vehicles`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, rate })
+                body: JSON.stringify({ name, rate, discounted_rate: discountedRate })
             });
             if (resp.ok) {
                 await this.loadVehicles();
@@ -568,20 +580,28 @@ class AdminPanel {
     renderVehiclesTable() {
         const tbody = document.getElementById('vehiclesTableBody');
         if (!tbody) return;
-        tbody.innerHTML = (this.vehicles || []).map(v => `
+        const map = new Map();
+        (this.promos || []).forEach(p => { const c = String(p.code || ''); if (/^VEH_/i.test(c)) map.set(c, p); });
+        tbody.innerHTML = (this.vehicles || []).map(v => {
+            const base = Number(v.rate || v.vehicle_rate || 0);
+            const promo = map.get('VEH_' + (v.id || v.vehicle_id || ''));
+            const builtInDisc = v.discounted_rate != null ? Number(v.discounted_rate) : null;
+            const disc = builtInDisc != null ? builtInDisc : (promo && promo.active ? Math.max(0, base - Number(promo.discount_flat || 0)) : null);
+            return `
             <tr>
-                <td>${v.name}</td>
-                <td>₹${Number(v.rate)}</td>
-                <td>${v.active ? 'Active' : 'Inactive'}</td>
+                <td>${v.name || ''}</td>
+                <td>₹${base}</td>
+                <td>${disc != null ? '₹' + disc : '—'}</td>
+                <td><span class="status-badge status-${v.active ? 'available' : 'unavailable'}">${v.active ? 'Active' : 'Inactive'}</span></td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-sm btn-warning edit-vehicle" data-id="${v.id}">Edit Rate</button>
-                        <button class="btn btn-sm btn-secondary toggle-vehicle" data-id="${v.id}" data-active="${v.active}">${v.active ? 'Disable' : 'Enable'}</button>
+                        <button class="btn btn-sm btn-warning edit-vehicle" data-id="${v.id}">Edit Rates</button>
+                        <button class="btn btn-sm ${v.active ? 'btn-disable' : 'btn-enable'} toggle-vehicle" data-id="${v.id}" data-active="${v.active}">${v.active ? '⏸️ Disable' : '✅ Enable'}</button>
                         <button class="btn btn-sm btn-danger delete-vehicle" data-id="${v.id}">Delete</button>
                     </div>
                 </td>
-            </tr>
-        `).join('');
+            </tr>`;
+        }).join('');
     }
 
     renderAvailabilityTable() {

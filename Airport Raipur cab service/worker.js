@@ -110,15 +110,17 @@ export default {
         const opt = document.createElement('div');
         opt.className = 'dropdown-item';
         const rate = Number(v.rate || v.vehicle_rate || 0);
+        const builtInDisc = v.discounted_rate != null ? Number(v.discounted_rate) : null;
         const promo = promoMap.get('VEH_' + (v.id || v.vehicle_id || ''));
-        const discounted = promo && promo.active ? Math.max(0, rate - Number(promo.discount_flat||0)) : null;
+        const discounted = builtInDisc != null ? builtInDisc : (promo && promo.active ? Math.max(0, rate - Number(promo.discount_flat||0)) : null);
         opt.innerHTML = (v.name || v.vehicle_name || 'Vehicle') + ' — ' + (discounted ? ('<span class="rate-original">'+fmtINR(rate)+'</span> <span class="rate-discount">'+fmtINR(discounted)+'</span>') : fmtINR(rate));
         opt.setAttribute('role','option');
         opt.addEventListener('click', () => {
           dropdown.textContent = v.name || v.vehicle_name || 'Vehicle';
           const rate = Number(v.rate || v.vehicle_rate || 0);
+          const builtInDisc = v.discounted_rate != null ? Number(v.discounted_rate) : null;
           const promo = promoMap.get('VEH_' + (v.id || v.vehicle_id || ''));
-          const discounted = promo && promo.active ? Math.max(0, rate - Number(promo.discount_flat||0)) : null;
+          const discounted = builtInDisc != null ? builtInDisc : (promo && promo.active ? Math.max(0, rate - Number(promo.discount_flat||0)) : null);
           const finalRate = (discounted && discounted>0 && discounted<rate) ? discounted : rate;
           if (rateDisp) rateDisp.innerHTML = (discounted ? ('<span class="rate-original">'+fmtINR(rate)+'</span> <span class="rate-discount">'+fmtINR(finalRate)+'</span>') : fmtINR(rate));
           window.selectedVehicle = { id: v.id || v.vehicle_id || null, name: v.name || v.vehicle_name || '', rate, discounted: discounted };
