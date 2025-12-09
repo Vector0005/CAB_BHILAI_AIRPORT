@@ -93,8 +93,18 @@ class AirportBookingSystem {
         const vehicleDropdown = document.getElementById('vehicleDropdown');
         const vehicleMenu = document.getElementById('vehicleMenu');
         if (vehicleDropdown && vehicleMenu) {
-            vehicleDropdown.addEventListener('click', () => {
+            vehicleDropdown.addEventListener('click', async () => {
                 const expanded = vehicleDropdown.getAttribute('aria-expanded') === 'true';
+                if (!expanded) {
+                    try {
+                        const res = await fetch(`${this.API_BASE_URL}/vehicles`);
+                        if (res.ok) {
+                            const json = await res.json();
+                            const vehicles = (json.vehicles || []).filter(v => v.active !== false);
+                            this.populateVehicleOptions(vehicles);
+                        }
+                    } catch(_) {}
+                }
                 vehicleDropdown.setAttribute('aria-expanded', expanded ? 'false' : 'true');
                 vehicleMenu.classList.toggle('hidden', expanded);
             });
@@ -420,6 +430,17 @@ class AirportBookingSystem {
         return false;
     }
 
+    async reverseGeocode(lat, lon) {
+        try {
+            const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(lat)}&lon=${encodeURIComponent(lon)}`;
+            const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+            if (!r.ok) return null;
+            const j = await r.json();
+            const name = j && (j.display_name || (j.address && (j.address.road || j.address.suburb || j.address.city || j.address.town)));
+            return name || null;
+        } catch(_) { return null; }
+    }
+
     updateTimeSlotAvailability() {
         if (!this.selectedDate) return;
 
@@ -535,23 +556,45 @@ class AirportBookingSystem {
                         reject(new Error('watch_timeout'));
                     }, ms);
                 });
+                const watchBestFix = (opts, ms = 15000, targetAcc = 30) => new Promise((resolve, reject) => {
+                    let best = null;
+                    let timer;
+                    const id = navigator.geolocation.watchPosition(pos => {
+                        if (!best || (pos.coords && pos.coords.accuracy < best.coords.accuracy)) {
+                            best = pos;
+                        }
+                        if (pos.coords && pos.coords.accuracy <= targetAcc) {
+                            clearTimeout(timer);
+                            try { navigator.geolocation.clearWatch(id); } catch(_){ }
+                            resolve(pos);
+                        }
+                    }, () => {}, opts);
+                    timer = setTimeout(() => {
+                        try { navigator.geolocation.clearWatch(id); } catch(_){}
+                        if (best) resolve(best); else reject(new Error('watch_timeout'));
+                    }, ms);
+                });
 
                 let position;
                 try {
-                    position = await tryOnce({ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 });
+                    position = await tryOnce({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
                 } catch (e1) {
                     try {
-                        position = await tryOnce({ enableHighAccuracy: false, timeout: 12000, maximumAge: 60000 });
+                        position = await tryOnce({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
                     } catch (e2) {
-                        position = await watchForFix({ enableHighAccuracy: false }, 8000);
+                        position = await watchBestFix({ enableHighAccuracy: true }, 15000, 30);
                     }
                 }
 
-                const { latitude, longitude } = position.coords;
-                const locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                locationInput.value = locationText;
+                const { latitude, longitude, accuracy } = position.coords;
+                let locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                try {
+                    const addr = await this.reverseGeocode(latitude, longitude);
+                    if (addr) locationText = addr;
+                } catch(_) {}
+                if (locationInput) locationInput.value = locationText;
                 this.bookingData.pickupLocation = locationText;
-                this.showNotice('success', 'Location captured');
+                this.showNotice('success', `Location captured (±${Math.round(accuracy||0)}m)`);
                 locationBtn.textContent = 'Location Found';
                 setTimeout(() => {
                     locationBtn.textContent = 'Get Current Location';
@@ -684,7 +727,8 @@ class AirportBookingSystem {
 
             if (response.ok) {
                 const result = await response.json();
-                this.handleSuccessfulBooking(result);
+                const bookingObj = result && result.booking ? result.booking : result;
+                this.handleSuccessfulBooking(bookingObj);
             } else {
                 const error = await response.json();
                 const msg = error.message || error.error || (Array.isArray(error.errors) ? (error.errors[0]?.msg || error.errors[0]) : null) || 'Booking failed';
@@ -708,18 +752,27 @@ class AirportBookingSystem {
     }
 
     handleSuccessfulBooking(booking) {
-        const name = booking.name || booking.customerName || '';
-        const d = booking.pickup_date || booking.pickupDate || booking.date;
-        const t = booking.pickup_time || booking.pickupTime || booking.timeSlot || '';
-        const trip = booking.trip_type || booking.tripType || '';
-        const amt = booking.price || booking.amount || this.calculateAmount();
-        const tripLabel = trip === 'HOME_TO_AIRPORT' ? 'Home to Airport' : trip === 'AIRPORT_TO_HOME' ? 'Airport to Home' : String(trip).replace(/_/g, ' ');
+        const name = booking.name ?? booking.customerName ?? this.bookingData.customerName ?? '';
+        const d = booking.pickup_date ?? booking.pickupDate ?? booking.date ?? this.bookingData.date ?? '';
+        const t = booking.pickup_time ?? booking.pickupTime ?? booking.timeSlot ?? this.bookingData.timeSlot ?? '';
+        const tripRaw = booking.trip_type ?? booking.tripType ?? this.bookingData.tripType ?? '';
+        const amt = booking.price ?? booking.amount ?? this.calculateAmount();
+        const id = booking.id ?? booking.bookingId ?? booking.booking_id ?? booking.booking_number ?? '';
+        const tripNorm = (() => {
+            const s = String(tripRaw || '').toUpperCase();
+            if (s === 'HOME_TO_AIRPORT') return 'Home to Airport';
+            if (s === 'AIRPORT_TO_HOME') return 'Airport to Home';
+            if (s === 'HOME-TO-AIRPORT') return 'Home to Airport';
+            if (s === 'AIRPORT-TO-HOME') return 'Airport to Home';
+            return String(tripRaw || '').replace(/_/g, ' ').replace(/-/g, ' ');
+        })();
+        const dateText = d ? new Date(d).toLocaleDateString() : '';
         alert(`Booking confirmed!\n\n` +
-              `Booking ID: ${booking.id}\n` +
-              `Customer: ${name}\n` +
-              `Date: ${d ? new Date(d).toLocaleDateString() : ''}\n` +
-              `Time: ${t}\n` +
-              `Trip: ${tripLabel}\n` +
+              `Booking ID: ${id || '—'}\n` +
+              `Customer: ${name || '—'}\n` +
+              `Date: ${dateText || '—'}\n` +
+              `Time: ${t || '—'}\n` +
+              `Trip: ${tripNorm || '—'}\n` +
               `Amount: ₹${amt}\n\n` +
               `You will receive a confirmation email/SMS shortly.`);
         this.resetForm();
