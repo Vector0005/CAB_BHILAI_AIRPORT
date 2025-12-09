@@ -138,3 +138,4 @@ CREATE POLICY "allow read promos" ON public.promos FOR SELECT TO public USING (a
 
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS promo_code text;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS promo_discount_amount numeric;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS flight_number text;

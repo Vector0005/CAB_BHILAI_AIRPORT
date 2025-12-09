@@ -11,7 +11,8 @@ class AirportBookingSystem {
             date: '',
             timeSlot: '',
             tripType: '',
-            pickupLocation: ''
+            pickupLocation: '',
+            flightNumber: ''
         };
         
         this.init();
@@ -84,6 +85,12 @@ class AirportBookingSystem {
         if (locationInput) {
             locationInput.addEventListener('input', (e) => {
                 this.bookingData.pickupLocation = e.target.value;
+            });
+        }
+        const flightInput = document.getElementById('flightNumber');
+        if (flightInput) {
+            flightInput.addEventListener('input', (e) => {
+                this.bookingData.flightNumber = e.target.value;
             });
         }
         const activeTab = document.querySelector('.time-tab.active');
@@ -716,6 +723,7 @@ class AirportBookingSystem {
             if (this.bookingData.vehicleId) payload.vehicleId = this.bookingData.vehicleId;
             if (this.bookingData.vehicleName) payload.vehicleName = this.bookingData.vehicleName;
             if (this.bookingData.vehicleRate) payload.vehicleRate = this.bookingData.vehicleRate;
+            if (this.bookingData.flightNumber) payload.flightNumber = this.bookingData.flightNumber;
 
             const response = await fetch(`${this.API_BASE_URL}/bookings`, {
                 method: 'POST',
@@ -787,16 +795,19 @@ class AirportBookingSystem {
             date: '',
             timeSlot: '',
             tripType: '',
-            pickupLocation: ''
+            pickupLocation: '',
+            flightNumber: ''
         };
 
         // Reset form fields
         const nameInput = document.getElementById('name');
         const phoneInput = document.getElementById('phone');
         const locationInput = document.getElementById('location');
+        const flightInput2 = document.getElementById('flightNumber');
         if (nameInput) nameInput.value = '';
         if (phoneInput) phoneInput.value = '';
         if (locationInput) locationInput.value = '';
+        if (flightInput2) flightInput2.value = '';
         document.querySelectorAll('input[name="tripType"]').forEach(radio => {
             radio.checked = false;
         });

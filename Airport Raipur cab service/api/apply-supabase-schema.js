@@ -57,6 +57,7 @@ async function main() {
           ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_id text;
           ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_name text;
           ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_rate numeric;
+          ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS flight_number text;
           create table if not exists public.promos (
             id text primary key,
             code text unique not null,

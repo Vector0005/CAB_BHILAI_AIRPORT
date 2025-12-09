@@ -752,7 +752,7 @@
 
                     <div class="table-container">
                         <div class="table-header">
-                            <h3>Recent Bookings</h3>
+                            <h3>Upcoming Trips</h3>
                         </div>
                         <table>
                             <thead>
@@ -770,7 +770,7 @@
                             </thead>
                             <tbody id="recentBookingsBody">
                                 <tr>
-                                    <td colspan="8" class="loading">Loading recent bookings...</td>
+                                    <td colspan="9" class="loading">Loading upcoming trips...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -806,6 +806,7 @@
                                     <th>Time</th>
                                     <th>Trip Type</th>
                                     <th>Location</th>
+                                    <th>Flight Number</th>
                                     <th>Status</th>
                                     <th>Amount</th>
                                     <th>Actions</th>
@@ -813,7 +814,7 @@
                             </thead>
                             <tbody id="bookingsTableBody">
                                 <tr>
-                                    <td colspan="9" class="loading">Loading bookings...</td>
+                                    <td colspan="10" class="loading">Loading bookings...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -987,6 +988,7 @@
                                         <th>Time Slot</th>
                                         <th>Trip Type</th>
                                         <th>Vehicle</th>
+                                        <th>Flight Number</th>
                                         <th>Amount</th>
                                         <th>Status</th>
                                         <th>Created Date</th>
@@ -994,7 +996,7 @@
                                 </thead>
                                 <tbody id="dataTableBody">
                                     <tr>
-                                        <td colspan="11" class="loading">Loading booking data...</td>
+                                        <td colspan="12" class="loading">Loading booking data...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1149,7 +1151,12 @@
                     }
                     var tbody=document.getElementById('recentBookingsBody');
                     if(tbody){
-                        var rows=(d.recentBookings||[]).map(function(b){
+                        var today=new Date(); today.setHours(0,0,0,0);
+                        var upcoming=(d.recentBookings||[])
+                          .filter(function(b){ var dt=b.pickup_date?new Date(b.pickup_date):null; if(!dt) return false; var s=(b.status||'').toUpperCase(); if(s==='CANCELLED'||s==='COMPLETED') return false; return dt>=today; })
+                          .sort(function(a,b){ return new Date(a.pickup_date)-new Date(b.pickup_date); })
+                          .slice(0,5);
+                        var rows=upcoming.map(function(b){
                             var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                             var timeText=b.pickup_time||'';
                             var loc=b.pickup_location||'';
@@ -1166,7 +1173,7 @@
                                '<td><button class="btn btn-sm btn-primary view-booking" data-id="'+b.id+'">View</button></td>'+
                             '</tr>';
                         }).join('');
-                        tbody.innerHTML=rows||'<tr><td colspan="8" class="loading">No recent bookings</td></tr>';
+                        tbody.innerHTML=rows||'<tr><td colspan="9" class="loading">No upcoming trips</td></tr>';
                     }
                 }catch(e){
                     try{
@@ -1181,7 +1188,12 @@
                         set('activeDrivers', Array.isArray(dc)&&dc[0]&&dc[0].count?dc[0].count:0);
                         var tbody=document.getElementById('recentBookingsBody');
                         if(tbody){
-                            var rows=(Array.isArray(br)?br.slice(0,10):[]).map(function(b){
+                            var today=new Date(); today.setHours(0,0,0,0);
+                            var upcoming=(Array.isArray(br)?br:[])
+                              .filter(function(b){ var dt=b.pickup_date?new Date(b.pickup_date):null; if(!dt) return false; var s=(b.status||'').toUpperCase(); if(s==='CANCELLED'||s==='COMPLETED') return false; return dt>=today; })
+                              .sort(function(a,b){ return new Date(a.pickup_date)-new Date(b.pickup_date); })
+                              .slice(0,5);
+                            var rows=upcoming.map(function(b){
                                 var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                                 var timeText=b.pickup_time||'';
                                 var loc=b.pickup_location||'';
@@ -1198,7 +1210,7 @@
                                    '<td><button class="btn btn-sm btn-primary view-booking" data-id="'+b.id+'">View</button></td>'+
                                 '</tr>';
                             }).join('');
-                            tbody.innerHTML=rows||'<tr><td colspan="8" class="loading">No recent bookings</td></tr>';
+                            tbody.innerHTML=rows||'<tr><td colspan="9" class="loading">No upcoming trips</td></tr>';
                         }
                     }catch(_){}
                 }
@@ -1218,6 +1230,7 @@
                             timeSlot: b.pickupTime||b.pickup_time||b.timeSlot||'',
                             tripType: (b.tripType||b.trip_type||''),
                             pickupLocation: b.pickupLocation||b.pickup_location||'',
+                            flightNumber: b.flight_number||b.flightNumber||'',
                             amount: Number(b.price||b.amount||0),
                             status: (b.status||'').toLowerCase(),
                             createdAt: b.createdAt||b.created_at||''
@@ -1251,6 +1264,7 @@
                             timeSlot: b.pickupTime||b.pickup_time||b.timeSlot||'',
                             tripType: (b.tripType||b.trip_type||''),
                             pickupLocation: b.pickupLocation||b.pickup_location||'',
+                            flightNumber: b.flight_number||b.flightNumber||'',
                             amount: Number(b.price||b.amount||0),
                             status: (b.status||'').toLowerCase(),
                             createdAt: b.createdAt||b.created_at||''
@@ -1272,7 +1286,7 @@
                 if(!tbody) return;
                 
                 if (filteredRows.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="loading">No bookings found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="10" class="loading">No bookings found</td></tr>';
                     return;
                 }
                 
@@ -1294,6 +1308,7 @@
                     '<td>'+timeText+'</td>'+
                     '<td>'+((b.trip_type||'').replace('_',' '))+'</td>'+
                     '<td>'+formatLocation(b.pickup_location||'')+'</td>'+
+                    '<td>'+(b.flight_number||'')+'</td>'+
                     '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                     '<td>₹'+Number(b.price||0)+'</td>'+
                     '<td>'+actions+'</td>'+
@@ -1696,7 +1711,7 @@
                         console.error('Error loading booking data:', e2);
                         const dataTableBody = document.getElementById('dataTableBody');
                         if (dataTableBody) {
-                            dataTableBody.innerHTML = '<tr><td colspan="11" class="loading">Error loading data</td></tr>';
+                            dataTableBody.innerHTML = '<tr><td colspan="12" class="loading">Error loading data</td></tr>';
                         }
                         bookingData = [];
                     }
@@ -1712,7 +1727,7 @@
                 console.error('Error loading booking data:', error);
                 const dataTableBody = document.getElementById('dataTableBody');
                 if (dataTableBody) {
-                    dataTableBody.innerHTML = '<tr><td colspan="11" class="loading">Error loading data</td></tr>';
+                    dataTableBody.innerHTML = '<tr><td colspan="12" class="loading">Error loading data</td></tr>';
                 }
             } finally {
                 isLoadingData = false;
@@ -1767,7 +1782,7 @@
             const tbody = document.getElementById('dataTableBody');
             
             if (data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="11" class="loading">No data found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="12" class="loading">No data found</td></tr>';
                 return;
             }
 
@@ -1780,6 +1795,7 @@
                 const timeSlot = booking.pickup_time || booking.pickupTime || booking.timeSlot || '';
                 const tripType = (booking.trip_type || booking.tripType || '').replace('_', ' ');
                 const vehicle = booking.vehicle || '';
+                const flightNumber = booking.flight_number || booking.flightNumber || '';
                 const amount = Number(booking.price || booking.amount || 0);
                 const status = (booking.status || '').toLowerCase();
                 const createdDate = booking.created_at || booking.createdAt || '';
@@ -1793,6 +1809,7 @@
                     <td>${timeSlot}</td>
                     <td>${tripType}</td>
                     <td>${vehicle}</td>
+                    <td>${flightNumber}</td>
                     <td>₹${amount}</td>
                     <td><span class="status-badge status-${status}">${status}</span></td>
                     <td>${createdDate ? new Date(createdDate).toLocaleDateString() : ''}</td>
@@ -1808,7 +1825,7 @@
                 return;
             }
 
-            const headers = ['Booking ID', 'Customer Name', 'Contact Number', 'Pickup Location', 'Pickup Date', 'Time Slot', 'Trip Type', 'Vehicle', 'Amount', 'Status', 'Created Date'];
+            const headers = ['Booking ID', 'Customer Name', 'Contact Number', 'Pickup Location', 'Pickup Date', 'Time Slot', 'Trip Type', 'Vehicle', 'Flight Number', 'Amount', 'Status', 'Created Date'];
             
             const csvContent = [
                 headers.join(','),
@@ -1821,6 +1838,7 @@
                     `"${(booking.pickup_time || booking.pickupTime || booking.timeSlot || '').replace(/"/g, '""')}"`,
                     `"${(booking.trip_type || booking.tripType || '').replace(/"/g, '""')}"`,
                     `"${(booking.vehicle || '').replace(/"/g, '""')}"`,
+                    `"${(booking.flight_number || booking.flightNumber || '').replace(/"/g, '""')}"`,
                     booking.price || booking.amount || 0,
                     booking.status || '',
                     booking.created_at || booking.createdAt || ''
@@ -1839,7 +1857,7 @@
             }
 
             // Create HTML table for Excel export
-            const headers = ['Booking ID', 'Customer Name', 'Contact Number', 'Pickup Location', 'Pickup Date', 'Time Slot', 'Trip Type', 'Vehicle', 'Amount', 'Status', 'Created Date'];
+            const headers = ['Booking ID', 'Customer Name', 'Contact Number', 'Pickup Location', 'Pickup Date', 'Time Slot', 'Trip Type', 'Vehicle', 'Flight Number', 'Amount', 'Status', 'Created Date'];
             
             const htmlContent = `
                 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -1867,6 +1885,7 @@
                                     <td>${booking.pickup_time || booking.pickupTime || booking.timeSlot || ''}</td>
                                     <td>${(booking.trip_type || booking.tripType || '').replace('_', ' ')}</td>
                                     <td>${booking.vehicle || ''}</td>
+                                    <td>${booking.flight_number || booking.flightNumber || ''}</td>
                                     <td>${booking.price || booking.amount || 0}</td>
                                     <td>${booking.status || ''}</td>
                                     <td>${booking.created_at || booking.createdAt || ''}</td>

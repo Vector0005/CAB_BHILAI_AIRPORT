@@ -81,7 +81,8 @@ router.post('/', [
   body('pickupDate').isISO8601().withMessage('Valid pickup date required'),
   body('pickupTime').isIn(['morning', 'evening']).withMessage('Pickup time must be morning or evening'),
   body('tripType').isIn(['HOME_TO_AIRPORT', 'AIRPORT_TO_HOME']).withMessage('Trip type required'),
-  body('price').isFloat({ min: 0 }).withMessage('Valid price required')
+  body('price').isFloat({ min: 0 }).withMessage('Valid price required'),
+  body('flightNumber').optional().isString()
 ], async (req, res) => {
   try {
     // Validate request
@@ -106,6 +107,7 @@ router.post('/', [
   const vehicleId = req.body.vehicleId || req.body.vehicle_id || null;
   const vehicleName = req.body.vehicleName || req.body.vehicle_name || null;
   const vehicleRate = req.body.vehicleRate || req.body.vehicle_rate || null;
+  const flightNumber = req.body.flightNumber || req.body.flight_number || null;
 
     // Check availability - parse as local day boundary
     const searchDate = parseLocalDateString(pickupDate);
@@ -185,6 +187,7 @@ router.post('/', [
     vehicle_id: vehicleId,
     vehicle_name: vehicleName,
     vehicle_rate: vehicleRate,
+    flight_number: flightNumber,
     status: 'PENDING',
     payment_status: 'PENDING'
   }

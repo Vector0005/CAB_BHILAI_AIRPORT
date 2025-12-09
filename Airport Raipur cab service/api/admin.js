@@ -242,6 +242,7 @@ class AdminPanel {
                 timeSlot: b.pickupTime || b.pickup_time || b.timeSlot || '',
                 tripType: (b.tripType || b.trip_type || ''),
                 pickupLocation: b.pickupLocation || b.pickup_location || '',
+                flightNumber: b.flight_number || b.flightNumber || '',
                 amount: Number(b.price || b.amount || 0),
                 status: (b.status || '').toLowerCase(),
                 createdAt: b.createdAt || b.created_at || ''
@@ -357,13 +358,22 @@ class AdminPanel {
     }
 
     updateRecentBookings() {
-        const recentBookings = this.bookings
-            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        const today = new Date(); today.setHours(0,0,0,0);
+        const upcomingBookings = (this.bookings || [])
+            .filter(b => {
+                const d = b.date || b.pickup_date;
+                if (!d) return false;
+                const dt = new Date(d);
+                const status = (b.status || '').toLowerCase();
+                if (['cancelled','completed'].includes(status)) return false;
+                return dt >= today;
+            })
+            .sort((a, b) => new Date(a.date || a.pickup_date) - new Date(b.date || b.pickup_date))
             .slice(0, 5);
 
         const tbody = document.getElementById('recentBookingsBody');
         if (tbody) {
-            tbody.innerHTML = recentBookings.map(b => {
+            tbody.innerHTML = upcomingBookings.map(b => {
                 const dateText = b.date ? new Date(b.date).toLocaleDateString() : '';
                 const timeText = b.timeSlot || '';
                 const locText = b.pickupLocation || '';
@@ -447,6 +457,7 @@ class AdminPanel {
                     <td>${timeText}</td>
                     <td>${(b.tripType || '').replace('_',' ')}</td>
                     <td>${b.pickupLocation || ''}</td>
+                    <td>${b.flightNumber || b.flight_number || ''}</td>
                     <td>
                         <span class="status-badge status-${status}">
                             ${status}
@@ -690,6 +701,7 @@ class AdminPanel {
             <div><strong>Time:</strong> ${timeText}</div>
             <div><strong>Trip:</strong> ${tripText}</div>
             <div><strong>Location:</strong> ${booking.pickupLocation || booking.pickup_location || ''}</div>
+            <div><strong>Flight Number:</strong> ${booking.flightNumber || booking.flight_number || ''}</div>
             <div><strong>Amount:</strong> ₹${amountNum}</div>
             <div><strong>Status:</strong> ${(booking.status || '')}</div>
             <div><strong>Created:</strong> ${createdText}</div>
