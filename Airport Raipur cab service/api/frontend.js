@@ -531,6 +531,12 @@ class AirportBookingSystem {
         const locationBtn = document.getElementById('detectLocation');
         const locationInput = document.getElementById('location');
         
+        const isSecure = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+        if (!isSecure) {
+            this.showNotice('error', 'Location requires HTTPS. Open the site over https to use GPS.');
+            return;
+        }
+
         locationBtn.disabled = true;
         locationBtn.textContent = 'Getting location...';
 
@@ -594,14 +600,54 @@ class AirportBookingSystem {
                 }
 
                 const { latitude, longitude, accuracy } = position.coords;
-                let locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                const coordsText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                let addrText = '';
                 try {
                     const addr = await this.reverseGeocode(latitude, longitude);
-                    if (addr) locationText = addr;
+                    if (addr) addrText = String(addr);
                 } catch(_) {}
-                if (locationInput) locationInput.value = locationText;
-                this.bookingData.pickupLocation = locationText;
-                this.showNotice('success', `Location captured (±${Math.round(accuracy||0)}m)`);
+                if (locationInput) locationInput.value = coordsText;
+                this.bookingData.pickupLocation = coordsText;
+                const extra = addrText ? ` — ${addrText}` : '';
+                this.showNotice('success', `Location captured (±${Math.round(accuracy||0)}m)${extra}`);
+
+                const needRefine = typeof accuracy === 'number' && accuracy > 25;
+                if (needRefine) {
+                    locationBtn.textContent = 'Improving accuracy...';
+                    try {
+                        const better = await (async () => {
+                            return await new Promise((resolve, reject) => {
+                                let best = null;
+                                let timer;
+                                const id = navigator.geolocation.watchPosition(pos => {
+                                    if (!best || (pos.coords && pos.coords.accuracy < best.coords.accuracy)) {
+                                        best = pos;
+                                    }
+                                    if (pos.coords && pos.coords.accuracy <= 20) {
+                                        clearTimeout(timer);
+                                        try { navigator.geolocation.clearWatch(id); } catch(_){ }
+                                        resolve(pos);
+                                    }
+                                }, () => {}, { enableHighAccuracy: true });
+                                timer = setTimeout(() => {
+                                    try { navigator.geolocation.clearWatch(id); } catch(_){}
+                                    if (best) resolve(best); else reject(new Error('watch_timeout'));
+                                }, 12000);
+                            });
+                        })();
+                        const { latitude: lat2, longitude: lon2, accuracy: acc2 } = better.coords;
+                        const coords2 = `${lat2.toFixed(6)}, ${lon2.toFixed(6)}`;
+                        let addr2 = '';
+                        try {
+                            const a2 = await this.reverseGeocode(lat2, lon2);
+                            if (a2) addr2 = String(a2);
+                        } catch(_) {}
+                        if (locationInput) locationInput.value = coords2;
+                        this.bookingData.pickupLocation = coords2;
+                        const extra2 = addr2 ? ` — ${addr2}` : '';
+                        this.showNotice('success', `Improved accuracy (±${Math.round(acc2||0)}m)${extra2}`);
+                    } catch(_e) {}
+                }
                 locationBtn.textContent = 'Location Found';
                 setTimeout(() => {
                     locationBtn.textContent = 'Get Current Location';
