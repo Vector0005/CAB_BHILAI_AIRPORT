@@ -1468,23 +1468,11 @@
                     }; }); }
                     const tbody=document.getElementById('availabilityTableBody');
                     if(!tbody) return;
-                    
-                    // Filter out entries where both morning and evening are available
-                    const originalCount = rows.length;
+                    const today=new Date(); today.setHours(0,0,0,0);
                     const filteredRows = rows.filter(function(a){
-                        const m=a.morningAvailable??a.morning_available;
-                        const e=a.eveningAvailable??a.evening_available;
-                        return !(m && e); // Remove entries where both are available
-                    });
-                    const filteredCount = filteredRows.length;
-                    
-                    console.log(`Availability: ${originalCount} total entries, ${filteredCount} after filtering out fully available dates`);
-                    
-                    if (filteredCount === 0) {
-                        tbody.innerHTML = '<tr><td colspan="4" class="loading">All dates are fully available - no management needed</td></tr>';
-                        return;
-                    }
-                    
+                        const dtRaw=a.date; if(!dtRaw) return false; const dt=new Date(dtRaw); if(isNaN(dt)) return false; dt.setHours(0,0,0,0); return dt>=today;
+                    }).sort(function(x,y){ return new Date(x.date)-new Date(y.date); });
+                    if (filteredRows.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">No upcoming dates to manage</td></tr>'; return; }
                     tbody.innerHTML=filteredRows.map(function(a){
                         const dt=new Date(a.date);
                         const m=a.morningAvailable??a.morning_available;
@@ -1505,12 +1493,11 @@
                         const rows= r.ok ? await r.json() : [];
                         const tbody=document.getElementById('availabilityTableBody');
                         if(!tbody) return;
+                        const today=new Date(); today.setHours(0,0,0,0);
                         const filteredRows = rows.filter(function(a){
-                            const m=a.morningAvailable??a.morning_available;
-                            const e=a.eveningAvailable??a.evening_available;
-                            return !(m && e);
-                        });
-                        if (filteredRows.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">All dates are fully available - no management needed</td></tr>'; return; }
+                            const dtRaw=a.date; if(!dtRaw) return false; const dt=new Date(dtRaw); if(isNaN(dt)) return false; dt.setHours(0,0,0,0); return dt>=today;
+                        }).sort(function(x,y){ return new Date(x.date)-new Date(y.date); });
+                        if (filteredRows.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="loading">No upcoming dates to manage</td></tr>'; return; }
                         tbody.innerHTML=filteredRows.map(function(a){
                             const dt=new Date(a.date);
                             const m=a.morningAvailable??a.morning_available;
