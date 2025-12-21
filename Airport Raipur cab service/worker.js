@@ -29,6 +29,36 @@ export default {
         const sp = url.searchParams;
         const readBody = async () => { try { return await request.json(); } catch (_) { return null; } };
         const toISO = (v) => { try { const d = new Date(v); return d.toISOString(); } catch (_) { return String(v || ''); } };
+        const b64u = (str) => btoa(str).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+        const b64uAB = (ab) => {
+          const bytes = new Uint8Array(ab);
+          let bin = '';
+          for (let i=0;i<bytes.length;i++){ bin += String.fromCharCode(bytes[i]); }
+          return b64u(bin);
+        };
+        const signJWT = async (payload, secret) => {
+          const header = { alg: 'HS256', typ: 'JWT' };
+          const now = Math.floor(Date.now()/1000);
+          const body = Object.assign({}, payload, { iat: now, exp: now + 7*24*60*60 });
+          const h = b64u(JSON.stringify(header));
+          const p = b64u(JSON.stringify(body));
+          const enc = new TextEncoder();
+          const key = await crypto.subtle.importKey('raw', enc.encode(secret||''), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const sig = await crypto.subtle.sign('HMAC', key, enc.encode(h + '.' + p));
+          const s = b64uAB(sig);
+          return h + '.' + p + '.' + s;
+        };
+        const verifyJWT = async (token, secret) => {
+          const parts = String(token||'').split('.');
+          if (parts.length !== 3) return null;
+          const [h,p,s] = parts;
+          const enc = new TextEncoder();
+          const key = await crypto.subtle.importKey('raw', enc.encode(secret||''), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const sig = await crypto.subtle.sign('HMAC', key, enc.encode(h + '.' + p));
+          const expected = b64uAB(sig);
+          if (expected !== s) return null;
+          try { const payload = JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/'))); if (payload.exp && Math.floor(Date.now()/1000) > payload.exp) return null; return payload; } catch (_) { return null; }
+        };
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
           return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase });
         }
@@ -57,6 +87,27 @@ export default {
         const offset = first.getDay();
         for (let i=0;i<offset;i++) {
           const ph = document.createElement('div'); ph.className='day-cell placeholder'; grid.appendChild(ph);
+        }
+        if (pathname === '/api/users/login' && method === 'POST') {
+          const body = await readBody();
+          const email = String(body?.email||'').trim().toLowerCase();
+          const pass = String(body?.password||'');
+          const adminEmail = String(env.ADMIN_EMAIL||'').trim().toLowerCase();
+          const adminPass = String(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD||'');
+          if (!adminEmail || !adminPass) return json({ error: 'Admin credentials not configured' }, 500);
+          if (email === adminEmail && pass === adminPass) {
+            const token = await signJWT({ userId: 'ADMIN', email: adminEmail, role: 'ADMIN' }, env.JWT_SECRET||'');
+            return json({ message: 'Login successful', user: { id: 'ADMIN', name: 'Admin', email: adminEmail, role: 'ADMIN' }, token });
+          }
+          return json({ error: 'Invalid credentials' }, 401);
+        }
+        if (pathname === '/api/users/profile' && method === 'GET') {
+          const auth = request.headers.get('authorization') || '';
+          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
+          const token = auth.substring(7);
+          const payload = await verifyJWT(token, env.JWT_SECRET||'');
+          if (!payload) return json({ error: 'Invalid token' }, 401);
+          return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
         }
         for (let day=1; day<=last.getDate(); day++) {
           const cell = document.createElement('button');
