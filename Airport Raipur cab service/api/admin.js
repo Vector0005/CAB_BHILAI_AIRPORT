@@ -162,6 +162,18 @@ class AdminPanel {
                 this.filterBookingsByStatus(e.target.value);
             });
         }
+
+        const lb = document.getElementById('loginButton');
+        if (lb) {
+            lb.addEventListener('click', (e) => { e.preventDefault(); this.handleLogin(); });
+        }
+        const lo = document.getElementById('logoutBtn');
+        if (lo) {
+            lo.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); });
+        }
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'loginButton') { e.preventDefault(); this.handleLogin(); }
+        });
     }
 
     authFetch(url, options = {}) {
@@ -190,6 +202,7 @@ class AdminPanel {
                 this.currentUser = data.user;
                 this.showAdminContent();
                 await this.loadDashboardData();
+                this.navigateToPage('dashboard');
                 this.showNotification('Login successful!', 'success');
             } else {
                 this.showNotification('Invalid credentials or insufficient permissions', 'error');
