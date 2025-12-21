@@ -643,6 +643,24 @@ body {
     height: 20px;
 }
 
+/* Footer and link buttons */
+.site-footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+.footer-actions { display: flex; gap: 12px; justify-content: center; }
+.hero-link { display: flex; gap: 12px; justify-content: center; margin: 10px 0 20px; }
+.btn-link { display: inline-flex; align-items: center; justify-content: center; text-align: center; padding: 12px 20px; border-radius: 12px; font-size: 16px; font-weight: 700; text-decoration: none; color: #ffffff; background: linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%); box-shadow: 0 10px 30px rgba(14,165,233,0.3); transition: all 0.3s ease; }
+.btn-link:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(14,165,233,0.5); }
+.btn-secondary { background: linear-gradient(135deg, #10b981 0%, #059669 100%); box-shadow: 0 10px 30px rgba(16,185,129,0.3); }
+.btn-secondary:hover { box-shadow: 0 10px 30px rgba(16,185,129,0.5); }
+
+/* About page alignment */
+.hero-snapshot { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 20px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); text-align: center; }
+.hero-title { font-size: 28px; font-weight: 700; background: linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.hero-subtext { color: #64748b; max-width: 800px; margin: 8px auto 0; }
+.about-details { background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%); border-radius: 20px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); max-width: 900px; margin: 0 auto; }
+.about-details h3 { font-size: 20px; font-weight: 700; color: #1e293b; margin-top: 12px; }
+.bullet-list { list-style: disc; padding-left: 20px; display: grid; gap: 8px; margin-top: 8px; }
+.cta-row { display: flex; justify-content: center; margin-top: 20px; }
+
 /* Responsive Design */
 @media (max-width: 1024px) {
     .booking-section {
@@ -713,6 +731,11 @@ body {
         width: 100%;
         justify-content: center;
     }
+
+    .footer-actions { flex-direction: column; }
+    .hero-link { flex-direction: column; }
+    .hero-title { font-size: 24px; }
+    .hero-subtext { max-width: 100%; }
 }
 
 @media (max-width: 480px) {
