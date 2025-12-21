@@ -50,7 +50,7 @@ export const authenticateToken = async (req, res, next) => {
 
 // Check if user is admin
 export const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'ADMIN') {
+  if (!req.user || String(req.user.role || '').toUpperCase() !== 'ADMIN') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
