@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import getSupabaseClient from '../services/supabaseClient.js'
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
 const supabase = getSupabaseClient(true)
 
 // Verify JWT token and attach user to request
