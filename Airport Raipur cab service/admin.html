@@ -28,6 +28,27 @@
             if (href) return '<a href="' + href + '" target="_blank" rel="noopener">' + (isUrl ? 'Open Map' : s) + '</a>';
             return s;
         }
+        function extractCoords(loc){
+            var s=String(loc||'').trim();
+            if(!s) return '';
+            var mLatLng=/^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(s);
+            if(mLatLng){
+                var parts=s.split(',');
+                var lat=parseFloat(parts[0]);
+                var lng=parseFloat(parts[1]);
+                if(isFinite(lat)&&isFinite(lng)) return lat.toFixed(6)+','+lng.toFixed(6);
+            }
+            if(/^https?:\/\//i.test(s)){
+                try{ var u=new URL(s); var q=u.searchParams.get('q'); if(q && /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(q)){ var p=q.split(','); var la=parseFloat(p[0]); var ln=parseFloat(p[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } }catch(_){ }
+                var atIdx=s.indexOf('@');
+                if(atIdx>0){
+                    var seg=s.substring(atIdx+1).split(/[\?\s]/)[0];
+                    var parts=seg.split(',');
+                    if(parts.length>=2){ var la=parseFloat(parts[0]); var ln=parseFloat(parts[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); }
+                }
+            }
+            return s;
+        }
     </script>
     <style>
         * {
@@ -1191,7 +1212,7 @@
                                '<td>'+(b.name||b.customerName||'')+'</td>'+
                                '<td>'+dateText+'</td>'+
                                '<td>'+timeText+'</td>'+
-                               '<td>'+formatLocation(loc)+'</td>'+
+                               '<td>'+extractCoords(loc)+'</td>'+
                                '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                                '<td>₹'+Number(b.price||b.amount||0)+'</td>'+
@@ -1229,7 +1250,7 @@
                                    '<td>'+(b.name||b.customerName||'')+'</td>'+
                                    '<td>'+dateText+'</td>'+
                                    '<td>'+timeText+'</td>'+
-                                   '<td>'+formatLocation(loc)+'</td>'+
+                                   '<td>'+extractCoords(loc)+'</td>'+
                                    '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                    '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                                    '<td>₹'+Number(b.price||b.amount||0)+'</td>'+
@@ -1333,7 +1354,7 @@
                     '<td>'+dateText+'</td>'+
                     '<td>'+timeText+'</td>'+
                     '<td>'+((b.trip_type||'').replace('_',' '))+'</td>'+
-                    '<td>'+formatLocation(((b.trip_type||'').toUpperCase()==='AIRPORT_TO_HOME' ? (b.dropoff_location||'') : (b.pickup_location||'')))+'</td>'+
+                    '<td>'+extractCoords(((b.trip_type||'').toUpperCase()==='AIRPORT_TO_HOME' ? (b.dropoff_location||'') : (b.pickup_location||'')))+'</td>'+
                     '<td>'+(b.flight_number||'')+'</td>'+
                     '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                     '<td>₹'+Number(b.price||0)+'</td>'+
@@ -1818,7 +1839,7 @@
                     <td>${bookingId}</td>
                     <td>${customerName}</td>
                     <td>${contactNumber}</td>
-                    <td>${formatLocation(customerLocation)}</td>
+                    <td>${extractCoords(customerLocation)}</td>
                     <td>${pickupDate ? new Date(pickupDate).toLocaleDateString() : ''}</td>
                     <td>${timeSlot}</td>
                     <td>${tripType}</td>
@@ -1847,7 +1868,7 @@
                     booking.id || '',
                     `"${(booking.name || booking.customerName || '').replace(/"/g, '""')}"`,
                     `"${(booking.phone || booking.phoneNumber || '').replace(/"/g, '""')}"`,
-                    `"${(((booking.trip_type || booking.tripType || '').toUpperCase()==='AIRPORT_TO_HOME' ? (booking.dropoff_location || booking.dropoffLocation || '') : (booking.pickup_location || booking.pickupLocation || '')).replace(/"/g, '""'))}"`,
+                    (function(){ var t=(booking.trip_type||booking.tripType||'').toUpperCase(); var loc=t==='AIRPORT_TO_HOME' ? (booking.dropoff_location||booking.dropoffLocation||'') : (booking.pickup_location||booking.pickupLocation||''); var c=extractCoords(loc); return `"${String(c).replace(/"/g,'""')}"`; })(),
                     booking.pickup_date || booking.pickupDate || '',
                     `"${(booking.pickup_time || booking.pickupTime || booking.timeSlot || '').replace(/"/g, '""')}"`,
                     `"${(booking.trip_type || booking.tripType || '').replace(/"/g, '""')}"`,
@@ -1894,7 +1915,7 @@
                                     <td>${booking.id || ''}</td>
                                     <td>${booking.name || booking.customerName || ''}</td>
                                     <td>${booking.phone || booking.phoneNumber || ''}</td>
-                                    <td>${( (booking.trip_type || booking.tripType || '').toUpperCase()==='AIRPORT_TO_HOME' ? (booking.dropoff_location || booking.dropoffLocation || '') : (booking.pickup_location || booking.pickupLocation || '') )}</td>
+                                    <td>${(function(){ var t=(booking.trip_type||booking.tripType||'').toUpperCase(); var loc=t==='AIRPORT_TO_HOME' ? (booking.dropoff_location||booking.dropoffLocation||'') : (booking.pickup_location||booking.pickupLocation||''); return extractCoords(loc); })()}</td>
                                     <td>${booking.pickup_date || booking.pickupDate || ''}</td>
                                     <td>${booking.pickup_time || booking.pickupTime || booking.timeSlot || ''}</td>
                                     <td>${(booking.trip_type || booking.tripType || '').replace('_', ' ')}</td>
@@ -2334,7 +2355,7 @@
                                      '<div><strong>Date:</strong> '+dateText+'</div>'+
                                      '<div><strong>Time:</strong> '+timeText+'</div>'+
                                      '<div><strong>Trip:</strong> '+(b?((b.trip_type||'').replace('_',' ')):'')+'</div>'+
-                                     '<div><strong>Location:</strong> '+formatLocation(customerLoc||'')+'</div>'+
+                                     '<div><strong>Location (coords):</strong> '+extractCoords(customerLoc||'')+'</div>'+
                                      '<div><strong>Amount:</strong> ₹'+(b?Number(b.price||0):0)+'</div>'; 
                 } catch(_) {
                     body.textContent = 'Proceed with this action?';

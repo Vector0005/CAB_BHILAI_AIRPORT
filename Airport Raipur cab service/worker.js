@@ -209,6 +209,21 @@ export default {
     const notice = document.getElementById('notice');
     function setNotice(t, ok) { if (!notice) return; notice.textContent = t; notice.classList.remove('hidden'); notice.style.background = ok ? '#d4edda' : '#f8d7da'; }
     if (!form) return;
+    const dl = document.getElementById('detectLocation');
+    if (dl) {
+      dl.addEventListener('click', () => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(function(pos){
+            const lat = pos && pos.coords ? pos.coords.latitude : null;
+            const lng = pos && pos.coords ? pos.coords.longitude : null;
+            const el = document.getElementById('location');
+            if (el && lat!=null && lng!=null) { el.value = Number(lat).toFixed(6)+','+Number(lng).toFixed(6); setNotice('Location detected', true); }
+          }, function(){ setNotice('Unable to detect location', false); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+        } else {
+          setNotice('Geolocation not available', false);
+        }
+      });
+    }
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('name')?.value || '';
