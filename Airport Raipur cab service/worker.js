@@ -62,6 +62,7 @@ export default {
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
           return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
         }
+        
         if (pathname === '/api/frontend.js' && method === 'GET') {
           const js = `(() => {
   const api = (p) => (window.location.origin + p);
@@ -217,11 +218,15 @@ export default {
         if (pathname === '/api/admin.js' && method === 'GET') {
           const js = `(() => {
   class AdminPanel {
-    constructor(){ this.bookings=[]; this.currentPage='dashboard'; }
+    constructor(){ this.bookings=[]; this.currentPage='dashboard'; this.API_BASE_URL='/api'; this.currentUser=null; }
     navigateToPage(p){ this.currentPage=p; try{ document.getElementById('pageTitle').textContent = 'Admin ' + p.charAt(0).toUpperCase()+p.slice(1); document.getElementById('breadcrumbText').textContent = 'Home / ' + (p.charAt(0).toUpperCase()+p.slice(1)); }catch(_){} }
-    updateDashboard(){}
-    renderBookingsTable(){}
-    async loadDashboardData(){}
+    showAdminContent(){ try{ document.getElementById('loginSection').style.display='none'; }catch(_){} }
+    showLogin(){ try{ document.getElementById('loginSection').style.display='block'; }catch(_){} }
+    authFetch(url, options={}){ const t=localStorage.getItem('adminToken'); const h=Object.assign({}, options.headers||{}, t?{ Authorization:'Bearer '+t }:{}); return fetch(url, Object.assign({}, options, { headers:h })); }
+    checkAuth(){ const t=localStorage.getItem('adminToken'); if(!t){ this.showLogin(); return; } fetch(this.API_BASE_URL+'/users/profile', { headers:{ Authorization:'Bearer '+t } }).then(r=>r.ok?r.json():Promise.reject()).then(d=>{ if(d&&d.user&&String(d.user.role||'').toUpperCase()==='ADMIN'){ this.currentUser=d.user; this.showAdminContent(); } else { this.showLogin(); } }).catch(()=>{ this.showLogin(); }); }
+    async handleLogin(){ const email=document.getElementById('email')?.value||''; const password=document.getElementById('password')?.value||''; try{ const r=await fetch(this.API_BASE_URL+'/users/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) }); const d=await r.json(); if(r.ok && String(d?.user?.role||'').toUpperCase()==='ADMIN'){ localStorage.setItem('adminToken', d.token); this.currentUser=d.user; this.showAdminContent(); this.navigateToPage('dashboard'); } else { alert('Invalid credentials or insufficient permissions'); } }catch(_){ alert('Login failed'); } }
+    bindEvents(){ const lb=document.getElementById('loginButton'); if(lb) lb.addEventListener('click', (e)=>{ e.preventDefault(); this.handleLogin(); }); const lo=document.getElementById('logoutBtn'); if(lo) lo.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('adminToken'); this.showLogin(); }); }
+    async loadDashboardData(){ try{ const r=await this.authFetch(this.API_BASE_URL+'/admin/dashboard'); if(r.ok){ const data=await r.json(); /* optionally update UI */ } }catch(_){ }
   }
   window.AdminPanel = AdminPanel;
 })();`;
