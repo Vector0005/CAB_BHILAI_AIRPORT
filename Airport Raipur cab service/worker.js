@@ -251,6 +251,7 @@ export default {
   }
   window.AdminPanel = AdminPanel;
   document.addEventListener('DOMContentLoaded', function(){ if(!window.adminPanel || !(window.adminPanel instanceof AdminPanel)){ window.adminPanel = new AdminPanel(); } try{ window.adminPanel.bindEvents(); }catch(_){} try{ window.adminPanel.checkAuth(); }catch(_){} });
+  document.addEventListener('click', function(e){ if(e && e.target && e.target.id==='loginButton'){ e.preventDefault(); e.stopImmediatePropagation(); if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } } }, true);
 })();`;
           return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
