@@ -60,7 +60,7 @@ export default {
           try { const payload = JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/'))); if (payload.exp && Math.floor(Date.now()/1000) > payload.exp) return null; return payload; } catch (_) { return null; }
         };
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
-          return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase });
+          return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
         }
         if (pathname === '/api/frontend.js' && method === 'GET') {
           const js = `(() => {
