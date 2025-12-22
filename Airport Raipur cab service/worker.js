@@ -251,8 +251,10 @@ export default {
       if(lb0){
         const lb=lb0.cloneNode(true);
         lb.id='loginButton';
+        // Provide a polyfill so legacy handlers calling this.handleLogin() won't throw
+        lb.handleLogin = function(){ if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } };
         if(lb0.parentNode){ lb0.parentNode.replaceChild(lb, lb0); }
-        lb.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } });
+        lb.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); lb.handleLogin(); });
       }
       const lo=document.getElementById('logoutBtn');
       if(lo){ lo.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('adminToken'); this.showLogin(); }); }
