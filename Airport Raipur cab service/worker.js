@@ -213,7 +213,7 @@ export default {
   }
   document.addEventListener('DOMContentLoaded', function() { initCalendar(); initVehicles(); initBookingForm(); });
 })();`;
-          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8' } });
+          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
         if (pathname === '/api/admin.js' && method === 'GET') {
           const js = `(() => {
@@ -231,7 +231,7 @@ export default {
   window.AdminPanel = AdminPanel;
   document.addEventListener('DOMContentLoaded', function(){ if(!window.adminPanel || !(window.adminPanel instanceof AdminPanel)){ window.adminPanel = new AdminPanel(); } try{ window.adminPanel.bindEvents(); }catch(_){} try{ window.adminPanel.checkAuth(); }catch(_){} });
 })();`;
-          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8' } });
+          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
         if (useProxy) {
           const base = proxyBase.replace(/\/$/, '');
