@@ -5,6 +5,7 @@ class AirportBookingSystem {
         this.currentDate = new Date();
         this.selectedDate = null;
         this.availabilityData = {};
+        this._geoWatchId = null;
         this.bookingData = {
             customerName: '',
             phoneNumber: '',
@@ -531,9 +532,29 @@ class AirportBookingSystem {
         const locationBtn = document.getElementById('detectLocation');
         const locationInput = document.getElementById('location');
         
+        const isSecure = (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+        if (!isSecure) {
+            this.showNotice('error', 'Location requires HTTPS. Open the site over https to use GPS.');
+            return;
+        }
+
+        if (this._geoWatchId != null) {
+            try { navigator.geolocation.clearWatch(this._geoWatchId); } catch(_) {}
+            this._geoWatchId = null;
+        }
+
         locationBtn.disabled = true;
         locationBtn.textContent = 'Getting location...';
         if (locationInput) locationInput.value = '';
+
+        setTimeout(() => {
+            try {
+                if (locationBtn && locationBtn.disabled) {
+                    locationBtn.disabled = false;
+                    locationBtn.textContent = 'Get Current Location';
+                }
+            } catch(_) {}
+        }, 20000);
 
         if (navigator.geolocation) {
             try {
@@ -574,11 +595,17 @@ class AirportBookingSystem {
                         if (pos.coords && pos.coords.accuracy <= targetAcc) {
                             clearTimeout(timer);
                             try { navigator.geolocation.clearWatch(id); } catch(_){ }
+                            this._geoWatchId = null;
                             resolve(pos);
                         }
-                    }, () => {}, opts);
+                    }, (err) => {
+                        try { navigator.geolocation.clearWatch(id); } catch(_){ }
+                        this._geoWatchId = null;
+                    }, opts);
+                    this._geoWatchId = id;
                     timer = setTimeout(() => {
                         try { navigator.geolocation.clearWatch(id); } catch(_){}
+                        this._geoWatchId = null;
                         if (best) resolve(best); else reject(new Error('watch_timeout'));
                     }, ms);
                 });
@@ -606,9 +633,15 @@ class AirportBookingSystem {
                 }, 1200);
 
             } catch (error) {
-                const usedIp = await this.tryIpLocation();
-                if (!usedIp) {
-                    this.showNotice('error', 'Unable to fetch location. Paste a Google Maps link or enter address.');
+                let permDenied = false;
+                try { permDenied = error && Number(error.code) === 1; } catch(_) {}
+                if (permDenied) {
+                    this.showNotice('error', 'Location permission denied. Enable it in browser settings.');
+                } else {
+                    const usedIp = await this.tryIpLocation();
+                    if (!usedIp) {
+                        this.showNotice('error', 'Unable to fetch location. Paste a Google Maps link or enter address.');
+                    }
                 }
                 locationBtn.textContent = 'Location Failed';
                 setTimeout(() => {
