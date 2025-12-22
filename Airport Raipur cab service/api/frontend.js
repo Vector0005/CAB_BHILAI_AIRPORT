@@ -598,6 +598,7 @@ class AirportBookingSystem {
                 const locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
                 if (locationInput) locationInput.value = locationText;
                 this.bookingData.pickupLocation = locationText;
+                try { if (typeof window.openMapCalibrate === 'function') window.openMapCalibrate(latitude, longitude); } catch(_) {}
                 this.showNotice('success', `Location captured (±${Math.round(accuracy||0)}m)`);
                 locationBtn.textContent = 'Location Found';
                 setTimeout(() => {
