@@ -168,6 +168,10 @@ class AdminPanel {
         if (lb) { lb.addEventListener('click', (e) => { e.preventDefault(); this.handleLogin(); }); }
         const lo = document.getElementById('logoutBtn');
         if (lo) { lo.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); }); }
+        const gr = document.getElementById('generateReportBtn');
+        if (gr) { gr.addEventListener('click', (e) => { e.preventDefault(); const sel = document.getElementById('reportRange'); const days = sel ? parseInt(sel.value||'7') : 7; this.loadReportsPage(days); }); }
+        const rr = document.getElementById('reportRange');
+        if (rr) { rr.addEventListener('change', (e) => { const days = parseInt(e.target.value||'7'); this.loadReportsPage(days); }); }
     }
 
     authFetch(url, options = {}) {
@@ -449,6 +453,9 @@ class AdminPanel {
             case 'vehicles':
                 this.loadVehicles();
                 this.renderVehiclesTable();
+                break;
+            case 'reports':
+                this.loadReportsPage();
                 break;
             
         }
@@ -939,6 +946,181 @@ class AdminPanel {
     showNotification(message, type) {
         if (typeof window.notify === 'function') { window.notify(String(message||''), String(type||'info')); return; }
         try { console.log(String(type||'info').toUpperCase()+': '+String(message||'')); } catch(_) {}
+    }
+
+    async loadReportsPage(days = 7) {
+        const container = document.getElementById('reportsContent');
+        if (container) container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading report...</div>';
+        let data = null;
+        try {
+            const end = new Date(); const start = new Date(); start.setDate(end.getDate() - days + 1);
+            const qs = `?startDate=${encodeURIComponent(start.toISOString())}&endDate=${encodeURIComponent(end.toISOString())}`;
+            const resp = await this.authFetch(`${this.API_BASE_URL}/admin/analytics${qs}`);
+            if (resp.ok) data = await resp.json();
+        } catch(_) {}
+        let trends = null;
+        try {
+            const dresp = await this.authFetch(`${this.API_BASE_URL}/admin/dashboard`);
+            if (dresp.ok) {
+                const dj = await dresp.json();
+                trends = dj && dj.bookingTrends ? dj.bookingTrends : null;
+            }
+        } catch(_) {}
+        try { if (!this.bookings || !this.bookings.length) await this.loadBookings(); } catch(_) {}
+        const rowsRange = this.filterBookingsByRange(this.bookings, days);
+        if (!data || (!Array.isArray(data.bookingsByStatus) || data.bookingsByStatus.length===0)) {
+            data = this.buildClientAnalytics(rowsRange);
+        }
+        if (!trends) {
+            try { trends = this.buildTrendsFromBookings(rowsRange, days); } catch(_) {}
+        }
+        data.bookingTrends = trends || [];
+        this.renderReports(data, days);
+    }
+
+    buildClientAnalytics(rows) {
+        rows = Array.isArray(rows) ? rows.slice() : [];
+        const byStatus = {};
+        const byTrip = {};
+        let totalRevenue = 0;
+        let start = null, end = null;
+        rows.forEach(b => {
+            const st = String(b.status||'').toUpperCase();
+            byStatus[st] = (byStatus[st]||0) + 1;
+            const tt = String(b.tripType||'').toUpperCase();
+            byTrip[tt] = (byTrip[tt]||0) + 1;
+            const d = b.date || b.pickup_date || b.createdAt || b.created_at;
+            if (d) {
+                const dt = new Date(d);
+                if (!start || dt < start) start = dt;
+                if (!end || dt > end) end = dt;
+            }
+            const stl = st.toLowerCase();
+            if (stl==='confirmed' || stl==='completed') totalRevenue += Number(b.amount || b.price || 0);
+        });
+        const revenueByTripType = Object.keys(byTrip).map(k => ({ tripType: k, _sum: { price: rows.filter(r => String(r.tripType||'').toUpperCase()===k && ['confirmed','completed'].includes(String(r.status||'').toLowerCase())).reduce((s, r) => s + Number(r.amount || r.price || 0), 0) } }));
+        const bookingsByStatus = Object.keys(byStatus).map(k => ({ status: k, _count: byStatus[k] }));
+        const bookingsByTripType = Object.keys(byTrip).map(k => ({ tripType: k, _count: byTrip[k] }));
+        return { bookingsByStatus, bookingsByTripType, revenueByTripType, dateRange: { start: start ? start.toISOString() : '', end: end ? end.toISOString() : '' } };
+    }
+
+    buildTrendsFromBookings(rows, days = 7) {
+        const now = new Date(); now.setHours(0,0,0,0);
+        const series = [];
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date(now); d.setDate(d.getDate() - i);
+            const next = new Date(d); next.setDate(next.getDate() + 1);
+            const count = (rows || []).filter(b => {
+                const dt = new Date(b.date || b.pickup_date || b.createdAt || b.created_at);
+                return dt >= d && dt < next;
+            }).length;
+            series.push({ date: d.toISOString().split('T')[0], bookings: count });
+        }
+        return series;
+    }
+
+    renderReports(data, days = 7) {
+        const container = document.getElementById('reportsContent');
+        if (!container) return;
+        const bs = Array.isArray(data.bookingsByStatus) ? data.bookingsByStatus : [];
+        const bt = Array.isArray(data.bookingsByTripType) ? data.bookingsByTripType : [];
+        const rv = Array.isArray(data.revenueByTripType) ? data.revenueByTripType : [];
+        const tr = Array.isArray(data.bookingTrends) ? data.bookingTrends : [];
+        const getCount = r => Number(((typeof r._count === 'object') ? (r._count._all || 0) : (r._count || r.count || r.counts || 0)));
+        let totalBookings = bs.reduce((s, r) => s + getCount(r), 0);
+        let totalRevenue = rv.reduce((s, r) => s + Number((r._sum && r._sum.price) || r.sum || 0), 0);
+        if ((!totalBookings || !rv.length) && Array.isArray(this.bookings)) {
+            const rowsRange = this.filterBookingsByRange(this.bookings, days);
+            totalBookings = rowsRange.length;
+            totalRevenue = rowsRange.filter(b => ['confirmed','completed'].includes(String(b.status||'').toLowerCase())).reduce((s,b)=>s+Number(b.amount||b.price||0),0);
+        }
+        const fmt = n => '₹' + Number(n || 0).toLocaleString();
+        const rangeText = (data.dateRange && data.dateRange.start && data.dateRange.end) ? (new Date(data.dateRange.start).toLocaleDateString() + ' — ' + new Date(data.dateRange.end).toLocaleDateString()) : '';
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><h3>Total Bookings</h3><div class="stat-number">${totalBookings}</div></div>
+                <div class="stat-card"><h3>Total Revenue</h3><div class="stat-number">${fmt(totalRevenue)}</div></div>
+                <div class="stat-card"><h3>Airport → Home</h3><div class="stat-number">${(bt && bt.length) ? bt.filter(r => String(r.tripType||'').toUpperCase()==='AIRPORT_TO_HOME').reduce((s,r)=>s+getCount(r),0) : this.filterBookingsByRange(this.bookings, days).filter(b=>String(b.tripType||'').toUpperCase()==='AIRPORT_TO_HOME').length}</div></div>
+                <div class="stat-card"><h3>Home → Airport</h3><div class="stat-number">${(bt && bt.length) ? bt.filter(r => String(r.tripType||'').toUpperCase()==='HOME_TO_AIRPORT').reduce((s,r)=>s+getCount(r),0) : this.filterBookingsByRange(this.bookings, days).filter(b=>String(b.tripType||'').toUpperCase()==='HOME_TO_AIRPORT').length}</div></div>
+            </div>
+            ${rangeText ? `<div style="margin:10px 0;color:#7f8c8d;">${rangeText}</div>` : ''}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+                <div>
+                    <h3 style="margin:0 0 10px 0;">Bookings by Status</h3>
+                    <canvas id="statusChart" width="700" height="280" style="width:100%;max-width:700px;height:280px"></canvas>
+                    <table>
+                        <thead><tr><th>Status</th><th>Count</th></tr></thead>
+                        <tbody>
+                            ${bs.map(r => `<tr><td>${String(r.status||'')}</td><td>${getCount(r)}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3 style="margin:0 0 10px 0;">Revenue by Trip Type</h3>
+                    <canvas id="revenueChart" width="700" height="280" style="width:100%;max-width:700px;height:280px"></canvas>
+                    <table>
+                        <thead><tr><th>Trip Type</th><th>Revenue</th></tr></thead>
+                        <tbody>
+                            ${rv.map(r => `<tr><td>${String(r.tripType||'').replace('_',' ')}</td><td>${fmt((r._sum && r._sum.price) || 0)}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="margin-top:20px;">
+                <h3 style="margin:0 0 10px 0;">Booking Trends (Last ${days} days)</h3>
+                <canvas id="trendsChart" width="900" height="300" style="width:100%;max-width:900px;height:300px"></canvas>
+                <table>
+                    <thead><tr><th>Date</th><th>Bookings</th></tr></thead>
+                    <tbody>
+                        ${tr.map(d => `<tr><td>${new Date(d.date).toLocaleDateString()}</td><td>${Number(d.bookings||0)}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        const palette = ['#3498db','#27ae60','#e67e22','#e74c3c','#9b59b6','#2ecc71','#f1c40f'];
+        const statusCounts = bs.map(r => getCount(r));
+        const statusLabels = bs.map(r => String(r.status||''));
+        const revenueValues = rv.map(r => Number((r._sum && r._sum.price) || 0));
+        const revenueLabels = rv.map(r => String(r.tripType||'').replace('_',' '));
+        const trendValues = tr.map(d => Number(d.bookings||0));
+        const trendLabels = tr.map(d => new Date(d.date).toLocaleDateString());
+
+        const statusCanvas = document.getElementById('statusChart');
+        const revenueCanvas = document.getElementById('revenueChart');
+        const trendsCanvas = document.getElementById('trendsChart');
+        if (statusCanvas && statusCounts.length) this.drawBarChart(statusCanvas, statusLabels, statusCounts, palette);
+        if (revenueCanvas && revenueValues.length) this.drawBarChart(revenueCanvas, revenueLabels, revenueValues, palette);
+        if (trendsCanvas && trendValues.length) this.drawBarChart(trendsCanvas, trendLabels, trendValues, ['#3498db']);
+    }
+
+    drawBarChart(canvas, labels, values, colors) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0,0,w,h);
+        const pad = 40;
+        const max = Math.max(...values, 1);
+        const bw = Math.max(20, Math.floor((w - pad*2) / values.length) - 10);
+        ctx.strokeStyle = '#bbb'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad, h - pad); ctx.lineTo(w - pad, h - pad); ctx.stroke();
+        values.forEach((v, i) => {
+            const x = pad + i * (bw + 10);
+            const bh = Math.round((h - pad*2) * (v / max));
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.fillRect(x, h - pad - bh, bw, bh);
+            ctx.fillStyle = '#333'; ctx.font = '12px Segoe UI'; ctx.textAlign = 'center';
+            ctx.fillText(String(labels[i]||''), x + bw/2, h - pad + 16);
+            ctx.fillText(String(v), x + bw/2, h - pad - bh - 6);
+        });
+    }
+
+    filterBookingsByRange(rows, days = 7) {
+        const end = new Date(); const start = new Date(); start.setDate(end.getDate() - days + 1);
+        start.setHours(0,0,0,0); end.setHours(23,59,59,999);
+        return (rows || []).filter(b => {
+            const dt = new Date(b.date || b.pickup_date || b.createdAt || b.created_at);
+            return dt >= start && dt <= end;
+        });
     }
 }
 
