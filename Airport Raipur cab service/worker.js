@@ -245,12 +245,47 @@ export default {
     showLogin(){ try{ document.getElementById('loginSection').style.display='block'; }catch(_){} }
     authFetch(url, options={}){ const t=localStorage.getItem('adminToken'); const h=Object.assign({}, options.headers||{}, t?{ Authorization:'Bearer '+t }:{}); return fetch(url, Object.assign({}, options, { headers:h })); }
     checkAuth(){ const t=localStorage.getItem('adminToken'); if(!t){ this.showLogin(); return; } fetch(this.API_BASE_URL+'/users/profile', { headers:{ Authorization:'Bearer '+t } }).then(r=>r.ok?r.json():Promise.reject()).then(d=>{ if(d&&d.user&&String(d.user.role||'').toUpperCase()==='ADMIN'){ this.currentUser=d.user; this.showAdminContent(); } else { this.showLogin(); } }).catch(()=>{ this.showLogin(); }); }
-    async handleLogin(){ const email=document.getElementById('email')?.value||''; const password=document.getElementById('password')?.value||''; try{ const r=await fetch(this.API_BASE_URL+'/users/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) }); const d=await r.json(); if(r.ok && String(d?.user?.role||'').toUpperCase()==='ADMIN'){ localStorage.setItem('adminToken', d.token); this.currentUser=d.user; this.showAdminContent(); this.navigateToPage('dashboard'); } else { alert('Invalid credentials or insufficient permissions'); } }catch(_){ alert('Login failed'); } }
-    bindEvents(){ const lb=document.getElementById('loginButton'); if(lb) lb.addEventListener('click', (e)=>{ e.preventDefault(); if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } }); const lo=document.getElementById('logoutBtn'); if(lo) lo.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('adminToken'); this.showLogin(); }); }
+    async handleLogin(){
+      if (window.__loginGate === true) return;
+      window.__loginGate = true;
+      const email=document.getElementById('email')?.value||'';
+      const password=document.getElementById('password')?.value||'';
+      try{
+        const r=await fetch(this.API_BASE_URL+'/users/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) });
+        const d=await r.json();
+        if(r.ok && String(d?.user?.role||'').toUpperCase()==='ADMIN'){
+          localStorage.setItem('adminToken', d.token);
+          this.currentUser=d.user;
+          this.showAdminContent();
+          this.navigateToPage('dashboard');
+        } else {
+          console.warn('Login failed: invalid credentials or insufficient permissions');
+        }
+      }catch(_){
+        console.warn('Login failed: network or server error');
+      } finally {
+        window.__loginGate = false;
+      }
+    }
+    bindEvents(){
+      const lb0=document.getElementById('loginButton');
+      if(lb0){
+        const lb=lb0.cloneNode(true);
+        lb.id='loginButton';
+        lb.handleLogin = function(){ if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } };
+        try{ lb.removeAttribute('onclick'); }catch(_){}
+        if(lb0.parentNode){ lb0.parentNode.replaceChild(lb, lb0); }
+        lb.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); lb.handleLogin(); });
+      }
+      const lo=document.getElementById('logoutBtn');
+      if(lo){ lo.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('adminToken'); this.showLogin(); }); }
+    }
     async loadDashboardData(){ try{ const r=await this.authFetch(this.API_BASE_URL+'/admin/dashboard'); if(r.ok){ const data=await r.json(); /* optionally update UI */ } }catch(_){ }
   }
   window.AdminPanel = AdminPanel;
+  window.handleLogin = function(){ if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } };
   document.addEventListener('DOMContentLoaded', function(){ if(!window.adminPanel || !(window.adminPanel instanceof AdminPanel)){ window.adminPanel = new AdminPanel(); } try{ window.adminPanel.bindEvents(); }catch(_){} try{ window.adminPanel.checkAuth(); }catch(_){} });
+  document.addEventListener('click', function(e){ if(e && e.target && e.target.id==='loginButton'){ e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); window.handleLogin(); } }, true);
 })();`;
           return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
