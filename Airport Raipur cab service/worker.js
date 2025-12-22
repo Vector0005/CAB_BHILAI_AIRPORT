@@ -209,18 +209,53 @@ export default {
     const notice = document.getElementById('notice');
     function setNotice(t, ok) { if (!notice) return; notice.textContent = t; notice.classList.remove('hidden'); notice.style.background = ok ? '#d4edda' : '#f8d7da'; }
     if (!form) return;
+    const dl = document.getElementById('detectLocation');
+    if (dl) {
+      dl.addEventListener('click', () => {
+        const el = document.getElementById('location');
+        if (el) el.value = '';
+        if (!navigator.geolocation) { setNotice('Geolocation not available', false); return; }
+        let best = null; let watchId = null;
+        const finish = () => { if (watchId!=null) { try{ navigator.geolocation.clearWatch(watchId); }catch(_){} } if (best && el) { el.value = Number(best.latitude).toFixed(6)+','+Number(best.longitude).toFixed(6); setNotice('Location detected', true); } else { setNotice('Unable to detect location', false); } };
+        const onPos = (pos) => { const c = pos && pos.coords ? pos.coords : null; if (!c) return; if (!best || (typeof c.accuracy==='number' && c.accuracy < best.accuracy)) { best = { latitude: c.latitude, longitude: c.longitude, accuracy: c.accuracy||9999 }; if (best.accuracy<=10) { finish(); } } };
+        const onErr = () => { finish(); };
+        try {
+          watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 0 });
+          setTimeout(finish, 20000);
+        } catch(_) { onErr(); }
+      });
+    }
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('name')?.value || '';
       const phone = document.getElementById('phone')?.value || '';
       const pickupTime = document.querySelector('.time-tab.active')?.getAttribute('data-time') || '';
-      const tripType = (document.querySelector('input[name="tripType"]:checked')?.value || '').replace(/\s+/g,'_');
-      const pickupLocation = document.getElementById('location')?.value || '';
+      const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
+      const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
+      const locInput = (document.getElementById('location')?.value || '').trim();
+      const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locInput);
+      const isMapUrl = /^https?:\/\//i.test(locInput) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locInput);
+      if (!isLatLng && !isMapUrl) {
+        setNotice('Paste a Google Maps link or click Detect Location to use coordinates', false);
+        return;
+      }
       const sel = window.selectedVehicle || {};
       const baseRate = Number(sel.rate || 0);
       const discRate = Number(sel.discounted || 0);
       const finalRate = discRate>0 && discRate<baseRate ? discRate : baseRate;
-      const payload = { name, phone, pickupLocation, dropoffLocation: '', pickupDate: window.selectedPickupDate, pickupTime, tripType, vehicleId: sel.id || null, vehicleName: sel.name || null, vehicleRate: baseRate, price: finalRate };
+      const payload = { 
+        name, 
+        phone, 
+        pickupLocation: (tripType==='HOME_TO_AIRPORT' ? locInput : 'Airport'), 
+        dropoffLocation: (tripType==='AIRPORT_TO_HOME' ? locInput : 'Airport'), 
+        pickupDate: window.selectedPickupDate, 
+        pickupTime, 
+        tripType, 
+        vehicleId: sel.id || null, 
+        vehicleName: sel.name || null, 
+        vehicleRate: baseRate, 
+        price: finalRate 
+      };
       try {
         const r = await fetch(api('/api/bookings'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) throw new Error('HTTP '+r.status);

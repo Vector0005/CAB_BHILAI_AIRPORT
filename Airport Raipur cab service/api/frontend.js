@@ -545,6 +545,7 @@ class AirportBookingSystem {
 
         locationBtn.disabled = true;
         locationBtn.textContent = 'Getting location...';
+        if (locationInput) locationInput.value = '';
 
         setTimeout(() => {
             try {
@@ -584,7 +585,7 @@ class AirportBookingSystem {
                         reject(new Error('watch_timeout'));
                     }, ms);
                 });
-                const watchBestFix = (opts, ms = 15000, targetAcc = 30) => new Promise((resolve, reject) => {
+                const watchBestFix = (opts, ms = 20000, targetAcc = 10) => new Promise((resolve, reject) => {
                     let best = null;
                     let timer;
                     const id = navigator.geolocation.watchPosition(pos => {
@@ -611,64 +612,20 @@ class AirportBookingSystem {
 
                 let position;
                 try {
-                    position = await tryOnce({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-                } catch (e1) {
+                    position = await watchBestFix({ enableHighAccuracy: true, maximumAge: 0 }, 20000, 10);
+                } catch (eWatch) {
                     try {
+                        position = await tryOnce({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+                    } catch (eTry) {
                         position = await tryOnce({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
-                    } catch (e2) {
-                        position = await watchBestFix({ enableHighAccuracy: true }, 15000, 30);
                     }
                 }
 
                 const { latitude, longitude, accuracy } = position.coords;
-                const coordsText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                let addrText = '';
-                try {
-                    const addr = await this.reverseGeocode(latitude, longitude);
-                    if (addr) addrText = String(addr);
-                } catch(_) {}
-                if (locationInput) locationInput.value = coordsText;
-                this.bookingData.pickupLocation = coordsText;
-                const extra = addrText ? ` — ${addrText}` : '';
-                this.showNotice('success', `Location captured (±${Math.round(accuracy||0)}m)${extra}`);
-
-                const needRefine = typeof accuracy === 'number' && accuracy > 25;
-                if (needRefine) {
-                    locationBtn.textContent = 'Improving accuracy...';
-                    try {
-                        const better = await (async () => {
-                            return await new Promise((resolve, reject) => {
-                                let best = null;
-                                let timer;
-                                const id = navigator.geolocation.watchPosition(pos => {
-                                    if (!best || (pos.coords && pos.coords.accuracy < best.coords.accuracy)) {
-                                        best = pos;
-                                    }
-                                    if (pos.coords && pos.coords.accuracy <= 20) {
-                                        clearTimeout(timer);
-                                        try { navigator.geolocation.clearWatch(id); } catch(_){ }
-                                        resolve(pos);
-                                    }
-                                }, () => {}, { enableHighAccuracy: true });
-                                timer = setTimeout(() => {
-                                    try { navigator.geolocation.clearWatch(id); } catch(_){}
-                                    if (best) resolve(best); else reject(new Error('watch_timeout'));
-                                }, 12000);
-                            });
-                        })();
-                        const { latitude: lat2, longitude: lon2, accuracy: acc2 } = better.coords;
-                        const coords2 = `${lat2.toFixed(6)}, ${lon2.toFixed(6)}`;
-                        let addr2 = '';
-                        try {
-                            const a2 = await this.reverseGeocode(lat2, lon2);
-                            if (a2) addr2 = String(a2);
-                        } catch(_) {}
-                        if (locationInput) locationInput.value = coords2;
-                        this.bookingData.pickupLocation = coords2;
-                        const extra2 = addr2 ? ` — ${addr2}` : '';
-                        this.showNotice('success', `Improved accuracy (±${Math.round(acc2||0)}m)${extra2}`);
-                    } catch(_e) {}
-                }
+                const locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+                if (locationInput) locationInput.value = locationText;
+                this.bookingData.pickupLocation = locationText;
+                this.showNotice('success', `Location captured (±${Math.round(accuracy||0)}m)`);
                 locationBtn.textContent = 'Location Found';
                 setTimeout(() => {
                     locationBtn.textContent = 'Get Current Location';
@@ -761,6 +718,14 @@ class AirportBookingSystem {
         if (!this.bookingData.pickupLocation) {
             const locInput = document.getElementById('location');
             if (locInput) this.bookingData.pickupLocation = locInput.value;
+        }
+
+        const locVal = String(this.bookingData.pickupLocation || '').trim();
+        const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locVal);
+        const isMapUrl = /^https?:\/\//i.test(locVal) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locVal);
+        if (!isLatLng && !isMapUrl) {
+            this.showNotice('error', 'Paste a Google Maps link or click Get Current Location to use coordinates');
+            return;
         }
 
         const errors = this.validateForm();

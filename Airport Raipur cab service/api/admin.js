@@ -1,3 +1,4 @@
+function extractCoords(loc){ var s=String(loc||'').trim(); if(!s) return ''; if(/^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(s)){ var p=s.split(','); var la=parseFloat(p[0]); var ln=parseFloat(p[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } if(/^https?:\/\//i.test(s)){ try{ var u=new URL(s); var q=u.searchParams.get('q'); if(q && /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(q)){ var pr=q.split(','); var la=parseFloat(pr[0]); var ln=parseFloat(pr[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } }catch(_){ } var at=s.indexOf('@'); if(at>0){ var seg=s.substring(at+1).split(/[\?\s]/)[0]; var parts=seg.split(','); if(parts.length>=2){ var la=parseFloat(parts[0]); var ln=parseFloat(parts[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } } } return s; }
 // Admin Panel JavaScript
 class AdminPanel {
     constructor() {
@@ -257,8 +258,9 @@ class AdminPanel {
                 phoneNumber: b.phone || b.phoneNumber || '',
                 date: b.pickupDate || b.pickup_date || '',
                 timeSlot: b.pickupTime || b.pickup_time || b.timeSlot || '',
-                tripType: (b.tripType || b.trip_type || ''),
+                tripType: String(b.tripType || b.trip_type || '').toUpperCase(),
                 pickupLocation: b.pickupLocation || b.pickup_location || '',
+                dropoffLocation: b.dropoffLocation || b.dropoff_location || '',
                 flightNumber: b.flight_number || b.flightNumber || '',
                 amount: Number(b.price || b.amount || 0),
                 status: (b.status || '').toLowerCase(),
@@ -393,7 +395,8 @@ class AdminPanel {
             tbody.innerHTML = upcomingBookings.map(b => {
                 const dateText = b.date ? new Date(b.date).toLocaleDateString() : '';
                 const timeText = b.timeSlot || '';
-                const locText = b.pickupLocation || '';
+                const tripUpper = String(b.tripType||'').toUpperCase();
+                const locText = extractCoords(tripUpper==='AIRPORT_TO_HOME' ? (b.dropoffLocation||'') : (b.pickupLocation||''));
                 const status = (b.status || '').toLowerCase();
                 return `
                 <tr>
@@ -466,6 +469,8 @@ class AdminPanel {
                     ? new Date(b.date).toLocaleDateString()
                     : (b.pickup_date ? new Date(b.pickup_date).toLocaleDateString() : '');
                 const timeText = b.timeSlot || b.pickup_time || b.pickupTime || '';
+                const tripUpper = String(b.tripType || '').toUpperCase();
+                const customerLoc = tripUpper==='AIRPORT_TO_HOME' ? (b.dropoffLocation || '') : (b.pickupLocation || '');
                 return `
                 <tr>
                     <td>${b.id}</td>
@@ -473,7 +478,7 @@ class AdminPanel {
                     <td>${dateText}</td>
                     <td>${timeText}</td>
                     <td>${(b.tripType || '').replace('_',' ')}</td>
-                    <td>${b.pickupLocation || ''}</td>
+                    <td>${extractCoords(customerLoc)}</td>
                     <td>${b.flightNumber || b.flight_number || ''}</td>
                     <td>
                         <span class="status-badge status-${status}">
@@ -717,7 +722,7 @@ class AdminPanel {
             <div><strong>Date:</strong> ${dateText}</div>
             <div><strong>Time:</strong> ${timeText}</div>
             <div><strong>Trip:</strong> ${tripText}</div>
-            <div><strong>Location:</strong> ${booking.pickupLocation || booking.pickup_location || ''}</div>
+            <div><strong>Location (coords):</strong> ${extractCoords(((String(booking.tripType||'').toUpperCase()==='AIRPORT_TO_HOME') ? (booking.dropoffLocation||booking.dropoff_location||'') : (booking.pickupLocation||booking.pickup_location||'')))}</div>
             <div><strong>Flight Number:</strong> ${booking.flightNumber || booking.flight_number || ''}</div>
             <div><strong>Amount:</strong> ₹${amountNum}</div>
             <div><strong>Status:</strong> ${(booking.status || '')}</div>
@@ -893,12 +898,12 @@ class AdminPanel {
                     <td>${new Date(booking.date).toLocaleDateString()}</td>
                     <td>${booking.timeSlot}</td>
                     <td>${booking.tripType}</td>
-                    <td>${booking.pickupLocation}</td>
-                    <td>
-                        <span class="status-badge status-${booking.status}">
-                            ${booking.status}
-                        </span>
-                    </td>
+                    <td>${extractCoords((String(booking.tripType||'').toUpperCase()==='AIRPORT_TO_HOME' ? (booking.dropoffLocation||'') : (booking.pickupLocation||'')))}</td>
+                <td>
+                    <span class="status-badge status-${booking.status}">
+                        ${booking.status}
+                    </span>
+                </td>
                     <td>₹${booking.amount}</td>
                     <td>
                         <div class="action-buttons">
