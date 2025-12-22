@@ -214,13 +214,26 @@ export default {
       const name = document.getElementById('name')?.value || '';
       const phone = document.getElementById('phone')?.value || '';
       const pickupTime = document.querySelector('.time-tab.active')?.getAttribute('data-time') || '';
-      const tripType = (document.querySelector('input[name="tripType"]:checked')?.value || '').replace(/\s+/g,'_');
-      const pickupLocation = document.getElementById('location')?.value || '';
+      const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
+      const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
+      const locInput = document.getElementById('location')?.value || '';
       const sel = window.selectedVehicle || {};
       const baseRate = Number(sel.rate || 0);
       const discRate = Number(sel.discounted || 0);
       const finalRate = discRate>0 && discRate<baseRate ? discRate : baseRate;
-      const payload = { name, phone, pickupLocation, dropoffLocation: '', pickupDate: window.selectedPickupDate, pickupTime, tripType, vehicleId: sel.id || null, vehicleName: sel.name || null, vehicleRate: baseRate, price: finalRate };
+      const payload = { 
+        name, 
+        phone, 
+        pickupLocation: (tripType==='HOME_TO_AIRPORT' ? locInput : 'Airport'), 
+        dropoffLocation: (tripType==='AIRPORT_TO_HOME' ? locInput : 'Airport'), 
+        pickupDate: window.selectedPickupDate, 
+        pickupTime, 
+        tripType, 
+        vehicleId: sel.id || null, 
+        vehicleName: sel.name || null, 
+        vehicleRate: baseRate, 
+        price: finalRate 
+      };
       try {
         const r = await fetch(api('/api/bookings'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) throw new Error('HTTP '+r.status);
