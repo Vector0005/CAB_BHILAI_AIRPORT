@@ -694,6 +694,20 @@
 </head>
 <body>
     <div class="admin-container">
+        <div id="loginSection" class="login-section" style="display:none;">
+            <div class="login-container">
+                <h2>Admin Login</h2>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="admin@raipurtaxi.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password">
+                </div>
+                <button id="loginButton" class="login-btn">Login</button>
+            </div>
+        </div>
         
 
         <!-- Admin Content -->
@@ -711,7 +725,7 @@
                     <a href="#" class="nav-item" data-page="reports" onclick="window.adminPanel && window.adminPanel.navigateToPage('reports')">📈 Reports</a>
                     <a href="#" class="nav-item" data-page="data" onclick="window.adminPanel && window.adminPanel.navigateToPage('data')">📊 Data Export</a>
                 </nav>
-                
+                <button id="logoutBtn" class="logout-btn">Logout</button>
             </div>
 
             <!-- Main Content -->

@@ -22,9 +22,12 @@ class AdminPanel {
     }
 
     checkAuth() {
-        // Temporarily disable authentication: always show admin content
-        this.currentUser = { role: 'ADMIN' };
-        this.showAdminContent();
+        const t = localStorage.getItem('adminToken');
+        if (!t) { this.showLogin(); return; }
+        fetch(`${this.API_BASE_URL}/users/profile`, { headers: { Authorization: `Bearer ${t}` }})
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(d => { if (d && d.user && (String(d.user.role).toUpperCase()==='ADMIN')) { this.currentUser = d.user; this.showAdminContent(); } else { this.showLogin(); } })
+            .catch(() => { this.showLogin(); });
     }
 
     showLogin() {
@@ -159,6 +162,24 @@ class AdminPanel {
                 this.filterBookingsByStatus(e.target.value);
             });
         }
+
+        const lb = document.getElementById('loginButton');
+        if (lb) {
+            lb.addEventListener('click', (e) => { e.preventDefault(); this.handleLogin(); });
+        }
+        const lo = document.getElementById('logoutBtn');
+        if (lo) {
+            lo.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); });
+        }
+        document.addEventListener('click', (e) => {
+            if (e.target && e.target.id === 'loginButton') { e.preventDefault(); this.handleLogin(); }
+        });
+    }
+
+    authFetch(url, options = {}) {
+        const t = localStorage.getItem('adminToken');
+        const h = Object.assign({}, options.headers || {}, t ? { Authorization: `Bearer ${t}` } : {});
+        return fetch(url, Object.assign({}, options, { headers: h }));
     }
 
     async handleLogin() {
@@ -181,6 +202,7 @@ class AdminPanel {
                 this.currentUser = data.user;
                 this.showAdminContent();
                 await this.loadDashboardData();
+                this.navigateToPage('dashboard');
                 this.showNotification('Login successful!', 'success');
             } else {
                 this.showNotification('Invalid credentials or insufficient permissions', 'error');
@@ -201,7 +223,7 @@ class AdminPanel {
     async loadDashboardData() {
         try {
             // Load dashboard statistics from API
-            const response = await fetch(`${this.API_BASE_URL}/admin/dashboard`);
+            const response = await this.authFetch(`${this.API_BASE_URL}/admin/dashboard`);
             if (response.ok) {
                 const data = await response.json();
                 try {
@@ -231,7 +253,7 @@ class AdminPanel {
 
     async loadBookings() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/admin/bookings?limit=200`);
+            const response = await this.authFetch(`${this.API_BASE_URL}/admin/bookings?limit=200`);
             const data = await response.json();
             const rows = Array.isArray(data) ? data : (data.bookings || []);
             this.bookings = rows.map(b => ({
@@ -934,3 +956,7 @@ if (!window.__adminInitDone) {
         window.adminPanel = new AdminPanel();
     }
 }
+        const lb = document.getElementById('loginButton');
+        if (lb) { lb.addEventListener('click', () => { this.handleLogin(); }); }
+        const lo = document.getElementById('logoutBtn');
+        if (lo) { lo.addEventListener('click', () => { this.handleLogout(); }); }

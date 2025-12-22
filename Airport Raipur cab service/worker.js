@@ -29,9 +29,40 @@ export default {
         const sp = url.searchParams;
         const readBody = async () => { try { return await request.json(); } catch (_) { return null; } };
         const toISO = (v) => { try { const d = new Date(v); return d.toISOString(); } catch (_) { return String(v || ''); } };
+        const b64u = (str) => btoa(str).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+        const b64uAB = (ab) => {
+          const bytes = new Uint8Array(ab);
+          let bin = '';
+          for (let i=0;i<bytes.length;i++){ bin += String.fromCharCode(bytes[i]); }
+          return b64u(bin);
+        };
+        const signJWT = async (payload, secret) => {
+          const header = { alg: 'HS256', typ: 'JWT' };
+          const now = Math.floor(Date.now()/1000);
+          const body = Object.assign({}, payload, { iat: now, exp: now + 7*24*60*60 });
+          const h = b64u(JSON.stringify(header));
+          const p = b64u(JSON.stringify(body));
+          const enc = new TextEncoder();
+          const key = await crypto.subtle.importKey('raw', enc.encode(secret||''), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const sig = await crypto.subtle.sign('HMAC', key, enc.encode(h + '.' + p));
+          const s = b64uAB(sig);
+          return h + '.' + p + '.' + s;
+        };
+        const verifyJWT = async (token, secret) => {
+          const parts = String(token||'').split('.');
+          if (parts.length !== 3) return null;
+          const [h,p,s] = parts;
+          const enc = new TextEncoder();
+          const key = await crypto.subtle.importKey('raw', enc.encode(secret||''), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const sig = await crypto.subtle.sign('HMAC', key, enc.encode(h + '.' + p));
+          const expected = b64uAB(sig);
+          if (expected !== s) return null;
+          try { const payload = JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/'))); if (payload.exp && Math.floor(Date.now()/1000) > payload.exp) return null; return payload; } catch (_) { return null; }
+        };
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
-          return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase });
+          return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
         }
+        
         if (pathname === '/api/frontend.js' && method === 'GET') {
           const js = `(() => {
   const api = (p) => (window.location.origin + p);
@@ -57,6 +88,27 @@ export default {
         const offset = first.getDay();
         for (let i=0;i<offset;i++) {
           const ph = document.createElement('div'); ph.className='day-cell placeholder'; grid.appendChild(ph);
+        }
+        if (pathname === '/api/users/login' && method === 'POST') {
+          const body = await readBody();
+          const email = String(body?.email||'').trim().toLowerCase();
+          const pass = String(body?.password||'');
+          const adminEmail = String(env.ADMIN_EMAIL||'').trim().toLowerCase();
+          const adminPass = String(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD||'');
+          if (!adminEmail || !adminPass) return json({ error: 'Admin credentials not configured' }, 500);
+          if (email === adminEmail && pass === adminPass) {
+            const token = await signJWT({ userId: 'ADMIN', email: adminEmail, role: 'ADMIN' }, env.JWT_SECRET||'');
+            return json({ message: 'Login successful', user: { id: 'ADMIN', name: 'Admin', email: adminEmail, role: 'ADMIN' }, token });
+          }
+          return json({ error: 'Invalid credentials' }, 401);
+        }
+        if (pathname === '/api/users/profile' && method === 'GET') {
+          const auth = request.headers.get('authorization') || '';
+          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
+          const token = auth.substring(7);
+          const payload = await verifyJWT(token, env.JWT_SECRET||'');
+          if (!payload) return json({ error: 'Invalid token' }, 401);
+          return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
         }
         for (let day=1; day<=last.getDate(); day++) {
           const cell = document.createElement('button');
@@ -166,13 +218,18 @@ export default {
         if (pathname === '/api/admin.js' && method === 'GET') {
           const js = `(() => {
   class AdminPanel {
-    constructor(){ this.bookings=[]; this.currentPage='dashboard'; }
+    constructor(){ this.bookings=[]; this.currentPage='dashboard'; this.API_BASE_URL='/api'; this.currentUser=null; }
     navigateToPage(p){ this.currentPage=p; try{ document.getElementById('pageTitle').textContent = 'Admin ' + p.charAt(0).toUpperCase()+p.slice(1); document.getElementById('breadcrumbText').textContent = 'Home / ' + (p.charAt(0).toUpperCase()+p.slice(1)); }catch(_){} }
-    updateDashboard(){}
-    renderBookingsTable(){}
-    async loadDashboardData(){}
+    showAdminContent(){ try{ document.getElementById('loginSection').style.display='none'; }catch(_){} }
+    showLogin(){ try{ document.getElementById('loginSection').style.display='block'; }catch(_){} }
+    authFetch(url, options={}){ const t=localStorage.getItem('adminToken'); const h=Object.assign({}, options.headers||{}, t?{ Authorization:'Bearer '+t }:{}); return fetch(url, Object.assign({}, options, { headers:h })); }
+    checkAuth(){ const t=localStorage.getItem('adminToken'); if(!t){ this.showLogin(); return; } fetch(this.API_BASE_URL+'/users/profile', { headers:{ Authorization:'Bearer '+t } }).then(r=>r.ok?r.json():Promise.reject()).then(d=>{ if(d&&d.user&&String(d.user.role||'').toUpperCase()==='ADMIN'){ this.currentUser=d.user; this.showAdminContent(); } else { this.showLogin(); } }).catch(()=>{ this.showLogin(); }); }
+    async handleLogin(){ const email=document.getElementById('email')?.value||''; const password=document.getElementById('password')?.value||''; try{ const r=await fetch(this.API_BASE_URL+'/users/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) }); const d=await r.json(); if(r.ok && String(d?.user?.role||'').toUpperCase()==='ADMIN'){ localStorage.setItem('adminToken', d.token); this.currentUser=d.user; this.showAdminContent(); this.navigateToPage('dashboard'); } else { alert('Invalid credentials or insufficient permissions'); } }catch(_){ alert('Login failed'); } }
+    bindEvents(){ const lb=document.getElementById('loginButton'); if(lb) lb.addEventListener('click', (e)=>{ e.preventDefault(); if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } }); const lo=document.getElementById('logoutBtn'); if(lo) lo.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('adminToken'); this.showLogin(); }); }
+    async loadDashboardData(){ try{ const r=await this.authFetch(this.API_BASE_URL+'/admin/dashboard'); if(r.ok){ const data=await r.json(); /* optionally update UI */ } }catch(_){ }
   }
   window.AdminPanel = AdminPanel;
+  document.addEventListener('DOMContentLoaded', function(){ if(!window.adminPanel || !(window.adminPanel instanceof AdminPanel)){ window.adminPanel = new AdminPanel(); } try{ window.adminPanel.bindEvents(); }catch(_){} try{ window.adminPanel.checkAuth(); }catch(_){} });
 })();`;
           return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8' } });
         }

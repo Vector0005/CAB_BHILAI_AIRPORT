@@ -107,7 +107,7 @@ app.use('/api/availability', availabilityRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/drivers', driverRoutes);
 app.use('/api/payments', paymentRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', authMiddleware.authenticateToken, authMiddleware.requireAdmin, adminRoutes);
 app.use('/api/diagnostics', diagnosticsRoutes);
 app.use('/api/vehicles', vehiclesRoutes);
 app.use('/api/promos', promosRoutes);
