@@ -973,21 +973,17 @@
                     <div class="table-container">
                         <div class="table-header">
                             <h3>📈 Reports & Analytics</h3>
-                            <div>
-                                <button class="btn btn-primary">📊 Generate Report</button>
-                                <button class="btn btn-success">📥 Export Data</button>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <label for="reportRange" style="color:#2c3e50; font-weight:600;">Range:</label>
+                                <select id="reportRange" class="search-box" style="width:auto;">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30">Last 30 days</option>
+                                </select>
+                                <button id="generateReportBtn" class="btn btn-primary">📊 Generate Report</button>
+                                <button id="exportReportBtn" class="btn btn-success">📥 Export Data</button>
                             </div>
                         </div>
-                        <div style="padding: 40px; text-align: center; color: #7f8c8d;">
-                            <h3>📈 Advanced Analytics Coming Soon!</h3>
-                            <p>Detailed reports and analytics will be available here.</p>
-                            <div style="margin-top: 20px;">
-                                <p>✅ Revenue Reports</p>
-                                <p>✅ Booking Trends</p>
-                                <p>✅ Customer Analytics</p>
-                                <p>✅ Driver Performance</p>
-                            </div>
-                        </div>
+                        <div id="reportsContent" style="padding: 20px;"></div>
                     </div>
                 </div>
 
