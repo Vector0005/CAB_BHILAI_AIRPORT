@@ -1602,12 +1602,14 @@
                             var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                             var timeText=b.pickup_time||'';
                             var trip=(b.trip_type||'').replace('_',' ');
+                            var tripUpper=(b.trip_type||'').toUpperCase();
+                            var customerLoc = tripUpper==='AIRPORT_TO_HOME' ? (b.dropoff_location||'') : (b.pickup_location||'');
                             body.innerHTML='<div><strong>ID:</strong> '+b.id+'</div>'+
                                 '<div><strong>Customer:</strong> '+(b.name||'')+'</div>'+
                                 '<div><strong>Date:</strong> '+dateText+'</div>'+
                                 '<div><strong>Time:</strong> '+timeText+'</div>'+
                                 '<div><strong>Trip:</strong> '+trip+'</div>'+
-                                '<div><strong>Location:</strong> '+formatLocation(b.pickup_location||'')+'</div>'+
+                                '<div><strong>Location (coords):</strong> '+extractCoords(customerLoc||'')+'</div>'+
                                 '<div><strong>Amount:</strong> ₹'+Number(b.price||0)+'</div>'+
                                 '<div><strong>Status:</strong> '+(b.status||'')+'</div>';
                             modal.style.display='flex';

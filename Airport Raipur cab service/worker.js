@@ -212,16 +212,19 @@ export default {
     const dl = document.getElementById('detectLocation');
     if (dl) {
       dl.addEventListener('click', () => {
-        if (navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(function(pos){
-            const lat = pos && pos.coords ? pos.coords.latitude : null;
-            const lng = pos && pos.coords ? pos.coords.longitude : null;
-            const el = document.getElementById('location');
-            if (el && lat!=null && lng!=null) { el.value = Number(lat).toFixed(6)+','+Number(lng).toFixed(6); setNotice('Location detected', true); }
-          }, function(){ setNotice('Unable to detect location', false); }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-        } else {
-          setNotice('Geolocation not available', false);
-        }
+        const el = document.getElementById('location');
+        if (!navigator.geolocation) { setNotice('Geolocation not available', false); return; }
+        let best = null; let watchId = null; let done = false;
+        const finish = () => { if (watchId!=null) { try{ navigator.geolocation.clearWatch(watchId); }catch(_){} } if (best && el) { el.value = Number(best.latitude).toFixed(6)+','+Number(best.longitude).toFixed(6); setNotice('Location detected', true); } else { setNotice('Unable to detect location', false); } };
+        const onPos = (pos) => {
+          const c = pos && pos.coords ? pos.coords : null;
+          if (!c) return;
+          if (!best || (typeof c.accuracy==='number' && c.accuracy < best.accuracy)) { best = { latitude: c.latitude, longitude: c.longitude, accuracy: c.accuracy||9999 }; }
+        };
+        const onErr = () => { done = true; finish(); };
+        try {
+          navigator.geolocation.getCurrentPosition(function(pos){ onPos(pos); if (!best || best.accuracy>100) { try{ watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }); setTimeout(function(){ done = true; finish(); }, 3000); }catch(_){ finish(); } } else { finish(); } }, onErr, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+        } catch(_) { onErr(); }
       });
     }
     form.addEventListener('submit', async (e) => {
