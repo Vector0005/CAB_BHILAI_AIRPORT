@@ -584,21 +584,17 @@ class AirportBookingSystem {
 
                 let position;
                 try {
-                    position = await tryOnce({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
-                } catch (e1) {
+                    position = await watchBestFix({ enableHighAccuracy: true, maximumAge: 0 }, 12000, 20);
+                } catch (eWatch) {
                     try {
+                        position = await tryOnce({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+                    } catch (eTry) {
                         position = await tryOnce({ enableHighAccuracy: false, timeout: 15000, maximumAge: 60000 });
-                    } catch (e2) {
-                        position = await watchBestFix({ enableHighAccuracy: true }, 15000, 30);
                     }
                 }
 
                 const { latitude, longitude, accuracy } = position.coords;
-                let locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-                try {
-                    const addr = await this.reverseGeocode(latitude, longitude);
-                    if (addr) locationText = addr;
-                } catch(_) {}
+                const locationText = `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
                 if (locationInput) locationInput.value = locationText;
                 this.bookingData.pickupLocation = locationText;
                 this.showNotice('success', `Location captured (±${Math.round(accuracy||0)}m)`);
@@ -688,6 +684,14 @@ class AirportBookingSystem {
         if (!this.bookingData.pickupLocation) {
             const locInput = document.getElementById('location');
             if (locInput) this.bookingData.pickupLocation = locInput.value;
+        }
+
+        const locVal = String(this.bookingData.pickupLocation || '').trim();
+        const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locVal);
+        const isMapUrl = /^https?:\/\//i.test(locVal) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locVal);
+        if (!isLatLng && !isMapUrl) {
+            this.showNotice('error', 'Paste a Google Maps link or click Get Current Location to use coordinates');
+            return;
         }
 
         const errors = this.validateForm();
