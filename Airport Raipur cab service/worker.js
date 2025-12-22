@@ -213,17 +213,15 @@ export default {
     if (dl) {
       dl.addEventListener('click', () => {
         const el = document.getElementById('location');
+        if (el) el.value = '';
         if (!navigator.geolocation) { setNotice('Geolocation not available', false); return; }
-        let best = null; let watchId = null; let done = false;
+        let best = null; let watchId = null;
         const finish = () => { if (watchId!=null) { try{ navigator.geolocation.clearWatch(watchId); }catch(_){} } if (best && el) { el.value = Number(best.latitude).toFixed(6)+','+Number(best.longitude).toFixed(6); setNotice('Location detected', true); } else { setNotice('Unable to detect location', false); } };
-        const onPos = (pos) => {
-          const c = pos && pos.coords ? pos.coords : null;
-          if (!c) return;
-          if (!best || (typeof c.accuracy==='number' && c.accuracy < best.accuracy)) { best = { latitude: c.latitude, longitude: c.longitude, accuracy: c.accuracy||9999 }; }
-        };
-        const onErr = () => { done = true; finish(); };
+        const onPos = (pos) => { const c = pos && pos.coords ? pos.coords : null; if (!c) return; if (!best || (typeof c.accuracy==='number' && c.accuracy < best.accuracy)) { best = { latitude: c.latitude, longitude: c.longitude, accuracy: c.accuracy||9999 }; if (best.accuracy<=10) { finish(); } } };
+        const onErr = () => { finish(); };
         try {
-          navigator.geolocation.getCurrentPosition(function(pos){ onPos(pos); if (!best || best.accuracy>100) { try{ watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }); setTimeout(function(){ done = true; finish(); }, 3000); }catch(_){ finish(); } } else { finish(); } }, onErr, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+          watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 0 });
+          setTimeout(finish, 20000);
         } catch(_) { onErr(); }
       });
     }

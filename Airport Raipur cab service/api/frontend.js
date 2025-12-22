@@ -533,6 +533,7 @@ class AirportBookingSystem {
         
         locationBtn.disabled = true;
         locationBtn.textContent = 'Getting location...';
+        if (locationInput) locationInput.value = '';
 
         if (navigator.geolocation) {
             try {
@@ -563,7 +564,7 @@ class AirportBookingSystem {
                         reject(new Error('watch_timeout'));
                     }, ms);
                 });
-                const watchBestFix = (opts, ms = 15000, targetAcc = 30) => new Promise((resolve, reject) => {
+                const watchBestFix = (opts, ms = 20000, targetAcc = 10) => new Promise((resolve, reject) => {
                     let best = null;
                     let timer;
                     const id = navigator.geolocation.watchPosition(pos => {
@@ -584,7 +585,7 @@ class AirportBookingSystem {
 
                 let position;
                 try {
-                    position = await watchBestFix({ enableHighAccuracy: true, maximumAge: 0 }, 12000, 20);
+                    position = await watchBestFix({ enableHighAccuracy: true, maximumAge: 0 }, 20000, 10);
                 } catch (eWatch) {
                     try {
                         position = await tryOnce({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
