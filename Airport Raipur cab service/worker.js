@@ -245,7 +245,28 @@ export default {
     showLogin(){ try{ document.getElementById('loginSection').style.display='block'; }catch(_){} }
     authFetch(url, options={}){ const t=localStorage.getItem('adminToken'); const h=Object.assign({}, options.headers||{}, t?{ Authorization:'Bearer '+t }:{}); return fetch(url, Object.assign({}, options, { headers:h })); }
     checkAuth(){ const t=localStorage.getItem('adminToken'); if(!t){ this.showLogin(); return; } fetch(this.API_BASE_URL+'/users/profile', { headers:{ Authorization:'Bearer '+t } }).then(r=>r.ok?r.json():Promise.reject()).then(d=>{ if(d&&d.user&&String(d.user.role||'').toUpperCase()==='ADMIN'){ this.currentUser=d.user; this.showAdminContent(); } else { this.showLogin(); } }).catch(()=>{ this.showLogin(); }); }
-    async handleLogin(){ const email=document.getElementById('email')?.value||''; const password=document.getElementById('password')?.value||''; try{ const r=await fetch(this.API_BASE_URL+'/users/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) }); const d=await r.json(); if(r.ok && String(d?.user?.role||'').toUpperCase()==='ADMIN'){ localStorage.setItem('adminToken', d.token); this.currentUser=d.user; this.showAdminContent(); this.navigateToPage('dashboard'); } else { alert('Invalid credentials or insufficient permissions'); } }catch(_){ alert('Login failed'); } }
+    async handleLogin(){
+      if (window.__loginGate === true) return;
+      window.__loginGate = true;
+      const email=document.getElementById('email')?.value||'';
+      const password=document.getElementById('password')?.value||'';
+      try{
+        const r=await fetch(this.API_BASE_URL+'/users/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) });
+        const d=await r.json();
+        if(r.ok && String(d?.user?.role||'').toUpperCase()==='ADMIN'){
+          localStorage.setItem('adminToken', d.token);
+          this.currentUser=d.user;
+          this.showAdminContent();
+          this.navigateToPage('dashboard');
+        } else {
+          console.warn('Login failed: invalid credentials or insufficient permissions');
+        }
+      }catch(_){
+        console.warn('Login failed: network or server error');
+      } finally {
+        window.__loginGate = false;
+      }
+    }
     bindEvents(){
       const lb0=document.getElementById('loginButton');
       if(lb0){
