@@ -231,7 +231,13 @@ export default {
       const pickupTime = document.querySelector('.time-tab.active')?.getAttribute('data-time') || '';
       const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
       const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
-      const locInput = document.getElementById('location')?.value || '';
+      const locInput = (document.getElementById('location')?.value || '').trim();
+      const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locInput);
+      const isMapUrl = /^https?:\/\//i.test(locInput) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locInput);
+      if (!isLatLng && !isMapUrl) {
+        setNotice('Paste a Google Maps link or click Detect Location to use coordinates', false);
+        return;
+      }
       const sel = window.selectedVehicle || {};
       const baseRate = Number(sel.rate || 0);
       const discRate = Number(sel.discounted || 0);
