@@ -165,15 +165,15 @@
     </div>
 
     <style>
-      .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:3000}
-      .modal{background:#fff;border-radius:10px;max-width:720px;width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-      .modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:600}
-      .modal-body{padding:0}
-      .modal-footer{padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #e5e7eb}
-      #mapCanvas{width:720px;max-width:92vw;height:380px}
-      .hidden{display:none}
-      .btn{padding:8px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#0ea5e9;color:#fff}
-      .btn-secondary{background:#fff;color:#334155}
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:3000}
+        .modal{background:#fff;border-radius:10px;max-width:720px;width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+        .modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:600}
+        .modal-body{padding:0}
+        .modal-footer{padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #e5e7eb}
+        #mapCanvas{width:720px;max-width:92vw;height:380px}
+        .hidden{display:none}
+      .modal-btn{padding:8px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#0ea5e9;color:#fff}
+      .modal-btn-secondary{background:#fff;color:#334155}
     </style>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-p8Qf4D5Eo2uZC0pGqXWw1i0aQf4f2p1xV3fQmT8Vh6XrV3wqfE9iA5Vwzj6bXcOQmHfGfdxZlPzT2SajB7QF1kA==" crossorigin="anonymous">
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-vRPRmZrJQjXQZVnW0eZV3HqUO4m6S7cF2H3mH5HfN4Pp8GgJ7kVbYs4lXH6YwzF3XKjvH2lZ6c1m3GdAqUqPog==" crossorigin="anonymous"></script>
@@ -181,13 +181,13 @@
       <div class="modal">
         <div class="modal-header">
           <span>Calibrate Location</span>
-          <button id="closeMap" class="btn btn-secondary">Close</button>
+          <button id="closeMap" class="modal-btn modal-btn-secondary">Close</button>
         </div>
         <div class="modal-body">
           <div id="mapCanvas"></div>
         </div>
         <div class="modal-footer">
-          <button id="useCoords" class="btn">Use These Coordinates</button>
+          <button id="useCoords" class="modal-btn">Use These Coordinates</button>
         </div>
       </div>
     </div>
