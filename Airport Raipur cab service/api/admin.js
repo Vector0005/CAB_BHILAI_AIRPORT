@@ -164,16 +164,9 @@ class AdminPanel {
         }
 
         const lb = document.getElementById('loginButton');
-        if (lb) {
-            lb.addEventListener('click', (e) => { e.preventDefault(); this.handleLogin(); });
-        }
+        if (lb) { lb.addEventListener('click', (e) => { e.preventDefault(); this.handleLogin(); }); }
         const lo = document.getElementById('logoutBtn');
-        if (lo) {
-            lo.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); });
-        }
-        document.addEventListener('click', (e) => {
-            if (e.target && e.target.id === 'loginButton') { e.preventDefault(); this.handleLogin(); }
-        });
+        if (lo) { lo.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); }); }
     }
 
     authFetch(url, options = {}) {
@@ -183,6 +176,8 @@ class AdminPanel {
     }
 
     async handleLogin() {
+        if (window.__loginGate === true) return;
+        window.__loginGate = true;
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
 
@@ -210,7 +205,7 @@ class AdminPanel {
         } catch (error) {
             console.error('Login error:', error);
             this.showNotification('Login failed. Please try again.', 'error');
-        }
+        } finally { window.__loginGate = false; }
     }
 
     handleLogout() {
@@ -937,9 +932,8 @@ class AdminPanel {
     }
 
     showNotification(message, type) {
-        // Simple notification using alert for now
-        // In a real app, you'd want a proper notification system
-        alert(`${type.toUpperCase()}: ${message}`);
+        if (typeof window.notify === 'function') { window.notify(String(message||''), String(type||'info')); return; }
+        try { console.log(String(type||'info').toUpperCase()+': '+String(message||'')); } catch(_) {}
     }
 }
 
@@ -956,7 +950,3 @@ if (!window.__adminInitDone) {
         window.adminPanel = new AdminPanel();
     }
 }
-        const lb = document.getElementById('loginButton');
-        if (lb) { lb.addEventListener('click', () => { this.handleLogin(); }); }
-        const lo = document.getElementById('logoutBtn');
-        if (lo) { lo.addEventListener('click', () => { this.handleLogout(); }); }
