@@ -62,6 +62,27 @@ export default {
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
           return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
         }
+        if (pathname === '/api/users/login' && method === 'POST') {
+          const body = await readBody();
+          const email = String(body?.email||'').trim().toLowerCase();
+          const pass = String(body?.password||'');
+          const adminEmail = String(env.ADMIN_EMAIL||'').trim().toLowerCase();
+          const adminPass = String((env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD)||'');
+          if (!adminEmail || !adminPass) return json({ error: 'Admin credentials not configured' }, 500);
+          if (email === adminEmail && pass === adminPass) {
+            const token = await signJWT({ userId: 'ADMIN', email: adminEmail, role: 'ADMIN' }, env.JWT_SECRET||'');
+            return json({ message: 'Login successful', user: { id: 'ADMIN', name: 'Admin', email: adminEmail, role: 'ADMIN' }, token });
+          }
+          return json({ error: 'Invalid credentials' }, 401);
+        }
+        if (pathname === '/api/users/profile' && method === 'GET') {
+          const auth = request.headers.get('authorization') || '';
+          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
+          const token = auth.substring(7);
+          const payload = await verifyJWT(token, env.JWT_SECRET||'');
+          if (!payload) return json({ error: 'Invalid token' }, 401);
+          return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
+        }
         
         if (pathname === '/api/frontend.js' && method === 'GET') {
           const js = `(() => {
