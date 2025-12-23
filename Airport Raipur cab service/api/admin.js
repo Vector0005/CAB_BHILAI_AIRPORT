@@ -457,6 +457,9 @@ class AdminPanel {
             case 'reports':
                 this.loadReportsPage();
                 break;
+            case 'pause':
+                this.initPause();
+                break;
             
         }
     }
@@ -705,6 +708,45 @@ class AdminPanel {
         if (morning) await this.updateAvailability(date, { morningAvailable: undefined });
         const evening = confirm('Toggle evening availability? OK=toggle, Cancel=skip');
         if (evening) await this.updateAvailability(date, { eveningAvailable: undefined });
+    }
+
+    initPause() {
+        const startEl = document.getElementById('pauseStart');
+        const endEl = document.getElementById('pauseEnd');
+        const btn = document.getElementById('applyPauseBtn');
+        const resultEl = document.getElementById('pauseResult');
+        if (!btn) return;
+        btn.onclick = async () => {
+            const s = (startEl && startEl.value) ? startEl.value : '';
+            const e = (endEl && endEl.value) ? endEl.value : '';
+            if (!s || !e) { this.showNotification('Select start and end dates', 'error'); return; }
+            const sDate = new Date(s);
+            const eDate = new Date(e);
+            if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate < sDate) { this.showNotification('Invalid date range', 'error'); return; }
+            btn.disabled = true;
+            btn.textContent = 'Applying...';
+            try {
+                const resp = await fetch(`${this.API_BASE_URL}/availability/bulk-update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ startDate: s, endDate: e, morningAvailable: false, eveningAvailable: false })
+                });
+                const json = await resp.json();
+                if (resp.ok) {
+                    if (resultEl) resultEl.textContent = `Service paused for ${json.updatedDates || 0} date(s)`;
+                    this.showNotification('Pause applied', 'success');
+                    await this.loadAvailability();
+                    this.renderAvailabilityTable();
+                } else {
+                    this.showNotification(json.error || 'Failed to apply pause', 'error');
+                }
+            } catch (_) {
+                this.showNotification('Failed to apply pause', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Apply Pause';
+            }
+        };
     }
 
     viewBooking(bookingId) {
