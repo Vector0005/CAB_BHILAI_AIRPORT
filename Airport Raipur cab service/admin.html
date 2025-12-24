@@ -950,20 +950,11 @@
                         <div style="padding:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; align-items:end;">
                             <div class="form-group">
                                 <label for="pauseStart">Start date</label>
-                                <input type="date" id="pauseStart">
+                                <input type="text" id="pauseStart" class="date-input" readonly placeholder="YYYY-MM-DD">
                             </div>
                             <div class="form-group">
                                 <label for="pauseEnd">End date</label>
-                                <input type="date" id="pauseEnd">
-                            </div>
-                            <div class="form-group">
-                                <label for="pauseQuickRange">Quick range</label>
-                                <select id="pauseQuickRange" class="search-box" style="width:auto;">
-                                    <option value="">Custom</option>
-                                    <option value="3">Next 3 days</option>
-                                    <option value="7">Next 7 days</option>
-                                    <option value="14">Next 14 days</option>
-                                </select>
+                                <input type="text" id="pauseEnd" class="date-input" readonly placeholder="YYYY-MM-DD">
                             </div>
                             <div style="display:flex; gap:8px;">
                                 <button id="applyPauseBtn" class="btn btn-danger">Apply Pause</button>
@@ -1171,6 +1162,39 @@
         adminScript.src = getApiUrl('/api/admin.js?v=stable-latest');
         adminScript.defer = true;
         document.head.appendChild(adminScript);
+    </script>
+    <style>
+        .date-input{padding:10px 12px;border:1px solid #dfe3e6;border-radius:8px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);font-size:14px;color:#2c3e50}
+        .date-input:focus{outline:none;border-color:#3498db;box-shadow:0 0 0 3px rgba(52,152,219,.15)}
+        .dp-picker{position:absolute;z-index:3000;background:#fff;border:1px solid #ecf0f1;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);width:280px;padding:10px}
+        .dp-header{display:flex;align-items:center;justify-content:space-between}
+        .dp-title{font-weight:600;color:#2c3e50}
+        .dp-nav{background:#f5f7fa;border:1px solid #dfe3e6;border-radius:8px;padding:4px 10px;cursor:pointer;color:#2c3e50}
+        .dp-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
+        .dp-week div{font-size:12px;color:#7f8c8d;text-align:center}
+        .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px}
+        .dp-day{background:#fff;border:1px solid #dfe3e6;border-radius:8px;padding:8px 0;text-align:center;color:#2c3e50;cursor:pointer}
+        .dp-day:hover{background:#eef2f6}
+        .dp-day.selected{background:#cde9ff;border-color:#7fc3ff;color:#004085}
+        .dp-day.disabled{opacity:.5;cursor:not-allowed}
+        .dp-day.placeholder{visibility:hidden;border:none;background:transparent}
+    </style>
+    <script>
+        (function(){
+            function fmt(d){var y=d.getFullYear();var m=String(d.getMonth()+1).padStart(2,'0');var da=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+da}
+            function parse(s){if(!s)return null;var d=new Date(s);d.setHours(0,0,0,0);return isNaN(d)?null:d}
+            var open=null;
+            function build(input){var rect=input.getBoundingClientRect();var top=rect.bottom+window.scrollY+4;var left=rect.left+window.scrollX;var val=parse(input.value);var min=parse(input.min);var link=input.id==='pauseEnd'?parse(document.getElementById('pauseStart')?.value):null;var minDate=link&&min?(link>min?link:min):(link||min);var base=val||minDate||new Date();base.setHours(0,0,0,0);var y=base.getFullYear();var m=base.getMonth();var cont=document.createElement('div');cont.className='dp-picker';cont.style.top=top+'px';cont.style.left=left+'px';var h=document.createElement('div');h.className='dp-header';var prev=document.createElement('button');prev.type='button';prev.className='dp-nav';prev.textContent='◀';var title=document.createElement('div');title.className='dp-title';title.textContent=new Date(y,m,1).toLocaleString(undefined,{month:'long',year:'numeric'});var next=document.createElement('button');next.type='button';next.className='dp-nav';next.textContent='▶';h.appendChild(prev);h.appendChild(title);h.appendChild(next);var week=document.createElement('div');week.className='dp-week';['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(w){var el=document.createElement('div');el.textContent=w;week.appendChild(el)});var grid=document.createElement('div');grid.className='dp-grid';function draw(){grid.innerHTML='';title.textContent=new Date(y,m,1).toLocaleString(undefined,{month:'long',year:'numeric'});var first=new Date(y,m,1);var last=new Date(y,m+1,0);var off=first.getDay();for(var i=0;i<off;i++){var ph=document.createElement('div');ph.className='dp-day placeholder';grid.appendChild(ph)}for(var d=1;d<=last.getDate();d++){var cell=document.createElement('button');cell.type='button';cell.className='dp-day';var dd=new Date(y,m,d);dd.setHours(0,0,0,0);cell.textContent=String(d);var disabled=minDate&&dd<minDate;if(disabled){cell.classList.add('disabled');cell.disabled=true}else{if(val&&dd.getTime()===val.getTime())cell.classList.add('selected');cell.addEventListener('click',function(){var sel=new Date(y,m,parseInt(this.textContent));sel.setHours(0,0,0,0);input.value=fmt(sel);close();input.dispatchEvent(new Event('change'))})}grid.appendChild(cell)}}
+            function close(){if(open&&open.parentNode){open.parentNode.removeChild(open)}open=null;document.removeEventListener('click',onDoc,true);document.removeEventListener('keydown',onKey,true)}
+            function onDoc(e){if(open&&e.target!==open&&e.target!==input&&!open.contains(e.target))close()}
+            function onKey(e){if(e.key==='Escape')close()}
+            prev.addEventListener('click',function(){m--;if(m<0){m=11;y--}draw()});
+            next.addEventListener('click',function(){m++;if(m>11){m=0;y++}draw()});
+            cont.appendChild(h);cont.appendChild(week);cont.appendChild(grid);document.body.appendChild(cont);open=cont;draw();setTimeout(function(){document.addEventListener('click',onDoc,true);document.addEventListener('keydown',onKey,true)},0)
+            }
+            function attach(id){var el=document.getElementById(id);if(!el)return;['focus','click'].forEach(function(evt){el.addEventListener(evt,function(){if(open) { var o=open; if(o.parentNode) o.parentNode.removeChild(o); open=null; } build(el)})})}
+            attach('pauseStart');attach('pauseEnd');
+        })()
     </script>
     <script>
         // Consolidated DOMContentLoaded event listener
