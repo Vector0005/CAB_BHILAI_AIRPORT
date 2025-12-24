@@ -359,6 +359,62 @@ export default {
           const r = await supabase('/availability?date=eq.' + encodeURIComponent(toISO(iso)), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
           return r;
         }
+        if (pathname === '/api/availability/bulk-update' && method === 'POST') {
+          const body = await readBody();
+          const s = body && body.startDate ? body.startDate : '';
+          const e = body && body.endDate ? body.endDate : '';
+          const sDate = new Date(s || 0);
+          const eDate = new Date(e || 0);
+          if (!s || !e || isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate.getTime() < sDate.getTime()) {
+            return json({ error: 'Invalid date range' }, 400);
+          }
+          sDate.setHours(0,0,0,0);
+          eDate.setHours(0,0,0,0);
+          const morningAvailable = body && body.morningAvailable;
+          const eveningAvailable = body && body.eveningAvailable;
+          const maxBookings = body && body.maxBookings;
+          let updatedCount = 0;
+          let insertedCount = 0;
+          const dates = [];
+          for (let d = new Date(sDate); d.getTime() <= eDate.getTime(); d.setDate(d.getDate() + 1)) {
+            const x = new Date(d);
+            x.setHours(0,0,0,0);
+            dates.push(x);
+          }
+          for (const date of dates) {
+            const iso = date.toISOString();
+            const next = new Date(date);
+            next.setDate(next.getDate() + 1);
+            const params = new URLSearchParams({ select: 'id,date' });
+            params.append('date', 'gte.' + iso);
+            params.append('date', 'lt.' + next.toISOString());
+            const existingResp = await supabase('/availability?' + params.toString(), { method: 'GET' }, true);
+            const rows = existingResp.status === 200 ? await existingResp.json().catch(() => []) : [];
+            if (Array.isArray(rows) && rows.length) {
+              const update = {};
+              if (morningAvailable !== undefined) update.morning_available = morningAvailable;
+              if (eveningAvailable !== undefined) update.evening_available = eveningAvailable;
+              if (maxBookings !== undefined) update.max_bookings = maxBookings;
+              if (Object.keys(update).length === 0) {
+                continue;
+              }
+              const ur = await supabase('/availability?date=eq.' + encodeURIComponent(iso), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
+              if (ur.status === 200) updatedCount++;
+            } else {
+              const payload = {
+                id: (crypto && typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : String(Date.now()),
+                date: iso,
+                morning_available: morningAvailable !== undefined ? morningAvailable : true,
+                evening_available: eveningAvailable !== undefined ? eveningAvailable : true,
+                max_bookings: maxBookings != null ? Number(maxBookings) : 10,
+                current_bookings: 0
+              };
+              const ir = await supabase('/availability', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+              if (ir.status === 201 || ir.status === 200) insertedCount++;
+            }
+          }
+          return json({ updatedDates: updatedCount, insertedDates: insertedCount });
+        }
         if (pathname === '/api/vehicles' && method === 'GET') {
           const r = await supabase('/vehicles?select=*', { method: 'GET' }, true);
           const data = r.status === 200 ? await r.json().catch(() => []) : [];
