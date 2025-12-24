@@ -7,6 +7,25 @@ const router = express.Router();
 const prisma = new PrismaClient();
 // Supabase client will be obtained per-request to ensure dotenv has loaded
 
+function parseDateOnly(s) {
+  try {
+    if (!s) return null
+    const parts = String(s).split('-').map(n => parseInt(n, 10))
+    if (parts.length === 3 && parts.every(n => !isNaN(n))) {
+      const d = new Date(parts[0], parts[1] - 1, parts[2])
+      d.setHours(0,0,0,0)
+      return d
+    }
+    const d = new Date(s)
+    d.setHours(0,0,0,0)
+    return d
+  } catch (_) {
+    const d = new Date(s)
+    d.setHours(0,0,0,0)
+    return d
+  }
+}
+
 // Get availability for a specific date or date range
 router.get('/', async (req, res) => {
   try {
@@ -122,7 +141,9 @@ router.patch('/:date', async (req, res) => {
       if (eveningAvailable !== undefined) updateData.evening_available = eveningAvailable
       if (maxBookings !== undefined) updateData.max_bookings = maxBookings
       if (currentBookings !== undefined) updateData.current_bookings = currentBookings
-      const { data, error } = await client3.from('availability').update(updateData).eq('date', date.toISOString()).select('*')
+      const searchDate = new Date(date); searchDate.setHours(0,0,0,0)
+      const nextDate = new Date(searchDate); nextDate.setDate(nextDate.getDate() + 1)
+      const { data, error } = await client3.from('availability').update(updateData).gte('date', searchDate.toISOString()).lt('date', nextDate.toISOString()).select('*')
       if (error) throw error
       return res.json({ message: 'Availability updated successfully', availability: data[0] })
     } else {
@@ -156,12 +177,13 @@ router.post('/bulk-update', async (req, res) => {
   try {
     const { startDate, endDate, morningAvailable, eveningAvailable, maxBookings } = req.body;
     
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = parseDateOnly(startDate);
+    const end = parseDateOnly(endDate);
     const dates = [];
     
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      dates.push(new Date(d));
+      const day = new Date(d); day.setHours(0,0,0,0)
+      dates.push(day);
     }
 
     const client4 = getSupabaseClient(true)
@@ -171,7 +193,18 @@ router.post('/bulk-update', async (req, res) => {
         if (morningAvailable !== undefined) updateData.morning_available = morningAvailable
         if (eveningAvailable !== undefined) updateData.evening_available = eveningAvailable
         if (maxBookings !== undefined) updateData.max_bookings = maxBookings
-        await client4.from('availability').upsert({ id: crypto.randomUUID(), date: date.toISOString(), ...updateData })
+        const next = new Date(date); next.setDate(next.getDate() + 1)
+        const { data: existing } = await client4.from('availability').select('id,date').gte('date', date.toISOString()).lt('date', next.toISOString()).limit(1)
+        if (existing && existing.length) {
+          await client4.from('availability').update(updateData).eq('id', existing[0].id)
+        } else {
+          await client4.from('availability').insert({ id: crypto.randomUUID(), date: date.toISOString(),
+            morning_available: morningAvailable !== undefined ? morningAvailable : true,
+            evening_available: eveningAvailable !== undefined ? eveningAvailable : true,
+            max_bookings: maxBookings ?? 10,
+            current_bookings: 0
+          })
+        }
       }
     } else {
       await Promise.all(dates.map(date => prisma.availability.upsert({
