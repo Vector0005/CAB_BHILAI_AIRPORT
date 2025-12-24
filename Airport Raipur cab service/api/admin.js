@@ -457,6 +457,9 @@ class AdminPanel {
             case 'reports':
                 this.loadReportsPage();
                 break;
+            case 'pause':
+                this.initPause();
+                break;
             
         }
     }
@@ -705,6 +708,109 @@ class AdminPanel {
         if (morning) await this.updateAvailability(date, { morningAvailable: undefined });
         const evening = confirm('Toggle evening availability? OK=toggle, Cancel=skip');
         if (evening) await this.updateAvailability(date, { eveningAvailable: undefined });
+    }
+
+    initPause() {
+        const startEl = document.getElementById('pauseStart');
+        const endEl = document.getElementById('pauseEnd');
+        const btn = document.getElementById('applyPauseBtn');
+        const liftBtn = document.getElementById('liftPauseBtn');
+        const quickEl = document.getElementById('pauseQuickRange');
+        const resultEl = document.getElementById('pauseResult');
+        if (!btn) return;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (startEl) { startEl.min = todayStr; if (!startEl.value) startEl.value = todayStr; }
+        if (endEl) { endEl.min = startEl ? startEl.value || todayStr : todayStr; if (!endEl.value) endEl.value = startEl ? startEl.value : todayStr; }
+
+        const syncEndMin = () => { if (endEl && startEl) { endEl.min = startEl.value || todayStr; if (endEl.value < endEl.min) endEl.value = endEl.min; } };
+        if (startEl) startEl.addEventListener('change', syncEndMin);
+
+        const preview = async (s, e) => {
+            const sDate = new Date(s); const eDate = new Date(e);
+            const days = Math.floor((eDate - sDate) / (24*60*60*1000)) + 1;
+            if (resultEl) resultEl.textContent = `${isFinite(days) && days>0 ? days : 0} date(s) selected`;
+        };
+        if (startEl && endEl) { startEl.addEventListener('change', () => preview(startEl.value, endEl.value)); endEl.addEventListener('change', () => preview(startEl.value, endEl.value)); preview(startEl.value, endEl.value); }
+
+        if (quickEl) {
+            quickEl.onchange = () => {
+                const val = parseInt(quickEl.value || '');
+                if (!isNaN(val) && startEl && endEl) {
+                    const s = new Date(); s.setHours(0,0,0,0);
+                    const e = new Date(s); e.setDate(e.getDate() + (val - 1));
+                    startEl.value = s.toISOString().split('T')[0];
+                    endEl.value = e.toISOString().split('T')[0];
+                    syncEndMin(); preview(startEl.value, endEl.value);
+                }
+            };
+        }
+
+        btn.onclick = async () => {
+            const s = (startEl && startEl.value) ? startEl.value : '';
+            const e = (endEl && endEl.value) ? endEl.value : '';
+            if (!s || !e) { this.showNotification('Select start and end dates', 'error'); return; }
+            const sDate = new Date(s);
+            const eDate = new Date(e);
+            if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate < sDate) { this.showNotification('Invalid date range', 'error'); return; }
+            btn.disabled = true;
+            btn.textContent = 'Applying...';
+            try {
+                const resp = await fetch(`${this.API_BASE_URL}/availability/bulk-update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ startDate: s, endDate: e, morningAvailable: false, eveningAvailable: false })
+                });
+                const json = await resp.json();
+                if (resp.ok) {
+                    if (resultEl) resultEl.textContent = `Service paused for ${json.updatedDates || 0} date(s)`;
+                    this.showNotification('Pause applied', 'success');
+                    await this.loadAvailability();
+                    this.renderAvailabilityTable();
+                } else {
+                    this.showNotification(json.error || 'Failed to apply pause', 'error');
+                }
+            } catch (_) {
+                this.showNotification('Failed to apply pause', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Apply Pause';
+            }
+        };
+
+        if (liftBtn) {
+            liftBtn.onclick = async () => {
+                const s = (startEl && startEl.value) ? startEl.value : '';
+                const e = (endEl && endEl.value) ? endEl.value : '';
+                if (!s || !e) { this.showNotification('Select start and end dates', 'error'); return; }
+                const sDate = new Date(s);
+                const eDate = new Date(e);
+                if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate < sDate) { this.showNotification('Invalid date range', 'error'); return; }
+                liftBtn.disabled = true;
+                liftBtn.textContent = 'Lifting...';
+                try {
+                    const resp = await fetch(`${this.API_BASE_URL}/availability/bulk-update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ startDate: s, endDate: e, morningAvailable: true, eveningAvailable: true })
+                    });
+                    const json = await resp.json();
+                    if (resp.ok) {
+                        if (resultEl) resultEl.textContent = `Pause lifted for ${json.updatedDates || 0} date(s)`;
+                        this.showNotification('Pause lifted', 'success');
+                        await this.loadAvailability();
+                        this.renderAvailabilityTable();
+                    } else {
+                        this.showNotification(json.error || 'Failed to lift pause', 'error');
+                    }
+                } catch (_) {
+                    this.showNotification('Failed to lift pause', 'error');
+                } finally {
+                    liftBtn.disabled = false;
+                    liftBtn.textContent = 'Lift Pause';
+                }
+            };
+        }
     }
 
     viewBooking(bookingId) {

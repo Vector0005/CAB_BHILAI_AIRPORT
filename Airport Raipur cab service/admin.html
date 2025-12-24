@@ -742,6 +742,7 @@
                     <a href="#" class="nav-item" data-page="drivers" onclick="window.adminPanel && window.adminPanel.navigateToPage('drivers')">👨‍💼 Drivers</a>
                     <a href="#" class="nav-item" data-page="vehicles" onclick="window.adminPanel && window.adminPanel.navigateToPage('vehicles')">🚗 Vehicles</a>
                     <a href="#" class="nav-item" data-page="availability" onclick="window.adminPanel && window.adminPanel.navigateToPage('availability')">📅 Availability</a>
+                    <a href="#" class="nav-item" data-page="pause" onclick="window.adminPanel && window.adminPanel.navigateToPage('pause')">🔇 Pause Service</a>
                     <a href="#" class="nav-item" data-page="users" onclick="window.adminPanel && window.adminPanel.navigateToPage('users')">👥 Users</a>
                     <a href="#" class="nav-item" data-page="reports" onclick="window.adminPanel && window.adminPanel.navigateToPage('reports')">📈 Reports</a>
                     <a href="#" class="nav-item" data-page="data" onclick="window.adminPanel && window.adminPanel.navigateToPage('data')">📊 Data Export</a>
@@ -937,6 +938,39 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+
+                <!-- Pause Service Page -->
+                <div id="pausePage" class="page-content">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>🔇 Pause Service</h3>
+                        </div>
+                        <div style="padding:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; align-items:end;">
+                            <div class="form-group">
+                                <label for="pauseStart">Start date</label>
+                                <input type="date" id="pauseStart">
+                            </div>
+                            <div class="form-group">
+                                <label for="pauseEnd">End date</label>
+                                <input type="date" id="pauseEnd">
+                            </div>
+                            <div class="form-group">
+                                <label for="pauseQuickRange">Quick range</label>
+                                <select id="pauseQuickRange" class="search-box" style="width:auto;">
+                                    <option value="">Custom</option>
+                                    <option value="3">Next 3 days</option>
+                                    <option value="7">Next 7 days</option>
+                                    <option value="14">Next 14 days</option>
+                                </select>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button id="applyPauseBtn" class="btn btn-danger">Apply Pause</button>
+                                <button id="liftPauseBtn" class="btn btn-success">Lift Pause</button>
+                            </div>
+                        </div>
+                        <div id="pauseResult" style="padding:16px; color:#2c3e50;"></div>
                     </div>
                 </div>
 

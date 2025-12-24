@@ -337,8 +337,8 @@ class AirportBookingSystem {
             let statusText = '';
 
             if (!availability.morning && !availability.evening) {
-                status = 'booked';
-                statusText = 'Fully Booked';
+                status = 'unavailable';
+                statusText = 'Unavailable';
             } else if (!availability.morning) {
                 status = 'partial';
                 statusText = 'Evening Available';
@@ -354,7 +354,7 @@ class AirportBookingSystem {
                 <div class="calendar-day-status">${displayText}</div>
             `;
 
-            if (!isPastDate) {
+            if (!isPastDate && status !== 'unavailable') {
                 dayElement.addEventListener('click', () => {
                     this.selectDate(currentDay);
                 });
@@ -505,7 +505,7 @@ class AirportBookingSystem {
         if (bookButton) {
             if (!availability.morning && !availability.evening) {
                 bookButton.disabled = true;
-                bookButton.textContent = 'Fully Booked';
+                bookButton.textContent = 'Unavailable';
             } else {
                 bookButton.disabled = false;
                 bookButton.textContent = 'Book Ride';
