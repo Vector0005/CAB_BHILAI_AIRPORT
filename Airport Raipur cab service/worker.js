@@ -235,8 +235,9 @@ export default {
       const locInput = (document.getElementById('location')?.value || '').trim();
       const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locInput);
       const isMapUrl = /^https?:\/\//i.test(locInput) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locInput);
-      if (!isLatLng && !isMapUrl) {
-        setNotice('Paste a Google Maps link or click Detect Location to use coordinates', false);
+      const isPlainText = locInput.length >= 3;
+      if (!isLatLng && !isMapUrl && !isPlainText) {
+        setNotice('Enter an address, Google Maps link, or coordinates', false);
         return;
       }
       const sel = window.selectedVehicle || {};
