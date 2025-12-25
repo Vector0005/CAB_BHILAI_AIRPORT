@@ -233,8 +233,8 @@ export default {
       const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
       const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
       const locInput = (document.getElementById('location')?.value || '').trim();
-      if (locInput.length < 5) {
-        setNotice('Enter pickup location (at least 5 characters)', false);
+      if (locInput.length < 3) {
+        setNotice('Enter pickup location (at least 3 characters)', false);
         return;
       }
       const sel = window.selectedVehicle || {};

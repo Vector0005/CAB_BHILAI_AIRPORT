@@ -2,7 +2,7 @@
 (function(){
   try {
     var s = document.createElement('script');
-    s.src = '/api/frontend.js';
+    s.src = '/api/frontend.js?v=plain-text-3';
     s.async = true;
     document.head.appendChild(s);
   } catch (_) {}
