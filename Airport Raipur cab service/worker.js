@@ -233,11 +233,8 @@ export default {
       const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
       const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
       const locInput = (document.getElementById('location')?.value || '').trim();
-      const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locInput);
-      const isMapUrl = /^https?:\/\//i.test(locInput) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locInput);
-      const isPlainText = locInput.length >= 3;
-      if (!isLatLng && !isMapUrl && !isPlainText) {
-        setNotice('Enter an address, Google Maps link, or coordinates', false);
+      if (locInput.length < 5) {
+        setNotice('Enter pickup location (at least 5 characters)', false);
         return;
       }
       const sel = window.selectedVehicle || {};
