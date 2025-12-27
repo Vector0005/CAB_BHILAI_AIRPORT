@@ -121,7 +121,7 @@
                         </div>
                         <div class="form-group">
                             <label>Rate</label>
-                            <div id="vehicleRateDisplay">₹0</div>
+                            <div id="vehicleRateDisplay">Rs 0</div>
                         </div>
 
                         
@@ -139,7 +139,7 @@
                                 </button>
                             </div>
                             <div class="location-help">
-                                💡 Tip: Enter an address, paste a Google Maps link, or click Detect Location to fill coordinates
+                                Tip: Enter an address, paste a Google Maps link, or click Detect Location to fill coordinates
                             </div>
                         </div>
 
@@ -175,8 +175,7 @@
       .modal-btn{padding:8px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#0ea5e9;color:#fff}
       .modal-btn-secondary{background:#fff;color:#334155}
     </style>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-p8Qf4D5Eo2uZC0pGqXWw1i0aQf4f2p1xV3fQmT8Vh6XrV3wqfE9iA5Vwzj6bXcOQmHfGfdxZlPzT2SajB7QF1kA==" crossorigin="anonymous">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-vRPRmZrJQjXQZVnW0eZV3HqUO4m6S7cF2H3mH5HfN4Pp8GgJ7kVbYs4lXH6YwzF3XKjvH2lZ6c1m3GdAqUqPog==" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
     <div id="mapOverlay" class="modal-overlay hidden">
       <div class="modal">
         <div class="modal-header">
@@ -195,50 +194,11 @@
     <!-- Hidden Admin Access Element -->
     <div id="adminAccess" class="admin-access-hidden" style="position: fixed; top: 0; left: 0; width: 10px; height: 10px; cursor: pointer; z-index: 9999;" title="Admin Access (Triple-click or Ctrl+Shift+A)"></div>
     
-    <script src="/script-backend.js"></script>
+    <script src="/script-backend.js?v=es5"></script>
     <script>
-        // Hidden admin access functionality
-        let adminClickCount = 0;
-        let adminClickTimer;
-        
-        // Method 1: Triple-click on hidden area
-        document.getElementById('adminAccess').addEventListener('click', function() {
-            adminClickCount++;
-            clearTimeout(adminClickTimer);
-            
-            if (adminClickCount >= 3) {
-                window.open('/admin.html', '_blank');
-                adminClickCount = 0;
-            }
-            
-            adminClickTimer = setTimeout(() => {
-                adminClickCount = 0;
-            }, 1000);
-        });
-        
-        // Method 2: Keyboard shortcut Ctrl+Shift+A
-        document.addEventListener('keydown', function(e) {
-            if (e.ctrlKey && e.shiftKey && e.key === 'A') {
-                e.preventDefault();
-                window.open('/admin.html', '_blank');
-            }
-        });
-        
-        // Method 3: Konami code for fun (for developers who know it)
-        let konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
-        let konamiIndex = 0;
-        
-        document.addEventListener('keydown', function(e) {
-            if (e.key === konamiCode[konamiIndex]) {
-                konamiIndex++;
-                if (konamiIndex === konamiCode.length) {
-                    window.open('/admin.html', '_blank');
-                    konamiIndex = 0;
-                }
-            } else {
-                konamiIndex = 0;
-            }
-        });
+      try{
+        (function(){ /* admin helpers disabled in localhost test to avoid legacy parse issues */ })();
+      }catch(_){ }
     </script>
 </body>
 </html>
