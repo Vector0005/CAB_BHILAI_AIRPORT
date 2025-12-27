@@ -36,8 +36,9 @@ const PORT = process.env.PORT || 3001;
 
 // Security middleware
 const defaultDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
-defaultDirectives["script-src"] = ["'self'", "'unsafe-inline'"]; 
-defaultDirectives["script-src-attr"] = ["'self'", "'unsafe-inline'"];
+defaultDirectives["script-src"] = ["'self'", "https:", "'unsafe-inline'"]; 
+defaultDirectives["script-src-attr"] = ["'self'", "https:", "'unsafe-inline'"];
+defaultDirectives["script-src-elem"] = ["'self'", "https:", "'unsafe-inline'"];
 defaultDirectives["style-src"] = ["'self'", "https:", "'unsafe-inline'"];
 defaultDirectives["img-src"] = ["'self'", "data:", "https:"];
 defaultDirectives["connect-src"] = [
