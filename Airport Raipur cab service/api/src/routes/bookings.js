@@ -149,23 +149,26 @@ router.post('/', [
     }
     if (!canBook) return res.status(400).json({ error: `${pickupTime[0].toUpperCase()+pickupTime.slice(1)} slot not available` })
 
-    // Get or create guest user for anonymous bookings
     let userId = null
     {
       const client = getSupabaseClient(true)
-      const { data: guest } = await client.from('users').select('id').eq('email', 'guest@raipurtaxi.com').limit(1)
-      if (guest && guest.length) {
-        userId = guest[0].id
+      if (client) {
+        const { data: guest } = await client.from('users').select('id').eq('email', 'guest@raipurtaxi.com').limit(1)
+        if (guest && guest.length) {
+          userId = guest[0].id
+        } else {
+          const { data: created } = await client.from('users').insert({
+            id: uuidv4(),
+            email: 'guest@raipurtaxi.com',
+            password: 'guest123',
+            name: 'Guest User',
+            phone: '0000000000',
+            role: 'CUSTOMER'
+          }).select('id').single()
+          userId = created?.id || null
+        }
       } else {
-        const { data: created } = await client.from('users').insert({
-          id: uuidv4(),
-          email: 'guest@raipurtaxi.com',
-          password: 'guest123',
-          name: 'Guest User',
-          phone: '0000000000',
-          role: 'CUSTOMER'
-        }).select('id').single()
-        userId = created?.id || null
+        userId = null
       }
     }
 
