@@ -1,11 +1,5 @@
-// Booking site client loader
+// Booking site client helper (no external loader)
 (function(){
-  try {
-    var s = document.createElement('script');
-    s.src = '/api/frontend.js?v=plain-text-3';
-    s.async = true;
-    document.head.appendChild(s);
-  } catch (_) {}
   var ready=function(fn){ if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', fn); } else { fn(); } };
   ready(function(){
     var dl=document.getElementById('detectLocation');
