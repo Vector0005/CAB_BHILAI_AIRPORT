@@ -76,8 +76,8 @@ router.post('/', [
   body('name').trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
   body('phone').matches(/^[0-9]{10}$/).withMessage('Phone must be 10 digits'),
   body('email').optional().isEmail().withMessage('Valid email required'),
-  body('pickupLocation').trim().isLength({ min: 5 }).withMessage('Pickup location required'),
-  body('dropoffLocation').trim().isLength({ min: 5 }).withMessage('Dropoff location required'),
+  body('pickupLocation').optional({ checkFalsy: true }).trim().isLength({ min: 5 }).withMessage('Pickup location must be at least 5 characters'),
+  body('dropoffLocation').optional({ checkFalsy: true }).trim().isLength({ min: 5 }).withMessage('Dropoff location must be at least 5 characters'),
   body('pickupDate').isISO8601().withMessage('Valid pickup date required'),
   body('pickupTime').isIn(['morning', 'evening']).withMessage('Pickup time must be morning or evening'),
   body('tripType').isIn(['HOME_TO_AIRPORT', 'AIRPORT_TO_HOME']).withMessage('Trip type required'),
@@ -103,6 +103,8 @@ router.post('/', [
     price,
     notes
   } = req.body;
+  const pickupLocationFinal = (pickupLocation && String(pickupLocation).trim().length) ? String(pickupLocation).trim() : (tripType === 'AIRPORT_TO_HOME' ? 'Airport' : '');
+  const dropoffLocationFinal = (dropoffLocation && String(dropoffLocation).trim().length) ? String(dropoffLocation).trim() : (tripType === 'HOME_TO_AIRPORT' ? 'Airport' : '');
   const promoCodeRaw = req.body.promoCode || req.body.promo_code || null;
   const vehicleId = req.body.vehicleId || req.body.vehicle_id || null;
   const vehicleName = req.body.vehicleName || req.body.vehicle_name || null;
@@ -177,8 +179,8 @@ router.post('/', [
     name,
     phone,
     email,
-    pickup_location: pickupLocation,
-    dropoff_location: dropoffLocation,
+    pickup_location: pickupLocationFinal,
+    dropoff_location: dropoffLocationFinal,
     pickup_date: searchDate.toISOString(),
     pickup_time: pickupTime,
     trip_type: tripType,

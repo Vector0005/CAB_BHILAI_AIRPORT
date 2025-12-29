@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raipur Airport ↔ Bhilai Travel Service</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -28,9 +28,9 @@
                 <!-- Calendar Section -->
                 <div class="calendar-container">
                     <div class="calendar-header">
-                        <button class="nav-btn" id="prevMonth">‹</button>
+                        <button class="nav-btn" id="prevMonth">&lt;</button>
                         <h2 class="month-year" id="monthYear">November 2024</h2>
-                        <button class="nav-btn" id="nextMonth">›</button>
+                        <button class="nav-btn" id="nextMonth">&gt;</button>
                     </div>
                     
                     <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="Choose a pickup date">
@@ -130,7 +130,7 @@
                         <div class="form-group">
                             <label for="location">Pickup/Drop Location</label>
                             <div class="location-input-container">
-                                <input type="text" id="location" name="location" placeholder="Paste Google Maps link or use Detect Location (coords)" required>
+                                <input type="text" id="location" name="location" placeholder="Paste Google Maps link or use Detect Location (coords)">
                                 <button type="button" class="location-detect-btn" id="detectLocation">
                                     <svg class="location-icon" viewBox="0 0 24 24" fill="none">
                                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/>
@@ -175,8 +175,8 @@
       .modal-btn{padding:8px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#0ea5e9;color:#fff}
       .modal-btn-secondary{background:#fff;color:#334155}
     </style>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha512-p8Qf4D5Eo2uZC0pGqXWw1i0aQf4f2p1xV3fQmT8Vh6XrV3wqfE9iA5Vwzj6bXcOQmHfGfdxZlPzT2SajB7QF1kA==" crossorigin="anonymous">
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha512-vRPRmZrJQjXQZVnW0eZV3HqUO4m6S7cF2H3mH5HfN4Pp8GgJ7kVbYs4lXH6YwzF3XKjvH2lZ6c1m3GdAqUqPog==" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous" defer></script>
     <div id="mapOverlay" class="modal-overlay hidden">
       <div class="modal">
         <div class="modal-header">
@@ -192,10 +192,36 @@
       </div>
     </div>
 
+    <div id="confirmationOverlay" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <span>Booking Confirmed</span>
+          <button id="closeConfirm" class="modal-btn modal-btn-secondary">Close</button>
+        </div>
+        <div class="modal-body">
+          <div style="padding:12px 16px" id="confirmationBody">
+            <div id="confirmNumber"></div>
+            <div id="confirmDate"></div>
+            <div id="confirmTime"></div>
+            <div id="confirmTrip"></div>
+            <div id="confirmPickup"></div>
+            <div id="confirmDropoff"></div>
+            <div id="confirmPrice"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="okConfirm" class="modal-btn">OK</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Hidden Admin Access Element -->
     <div id="adminAccess" class="admin-access-hidden" style="position: fixed; top: 0; left: 0; width: 10px; height: 10px; cursor: pointer; z-index: 9999;" title="Admin Access (Triple-click or Ctrl+Shift+A)"></div>
     
-    <script src="/script-backend.js"></script>
+    <script src="script-backend.js?v=es5" defer></script>
+    <script>
+      try{ setTimeout(function(){ if(!window.L){ var n=document.getElementById('notice'); if(n){ n.textContent='Map library failed to load. Detect Location still works.'; n.classList.remove('hidden'); n.style.background='#fff3cd'; } } }, 300); }catch(_){ }
+    </script>
     <script>
         // Hidden admin access functionality
         let adminClickCount = 0;
