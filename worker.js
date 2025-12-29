@@ -592,6 +592,96 @@ export default {
           if (adminResp.status !== 404) return adminResp;
         }
       }
+      if (!env.ASSETS && (url.pathname === '/' || url.pathname === '/index' || url.pathname === '/index.html')) {
+        const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Raipur Airport ↔ Bhilai Travel Service</title>
+<style>
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;background:#f7fafc;color:#0f172a}
+.container{max-width:1000px;margin:0 auto;padding:16px}
+.header{padding:8px 0;margin-bottom:8px}
+.main-content{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.calendar-container{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px}
+.calendar-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.weekday{font-weight:600;font-size:12px;color:#475569;text-align:center}
+.calendar-day{border:1px solid #e5e7eb;border-radius:8px;padding:8px;text-align:center;cursor:pointer;min-height:48px}
+.calendar-day.available{background:#eef2ff}
+.calendar-day.partial{background:#fff7ed}
+.calendar-day.booked{background:#fee2e2}
+.calendar-day.selected{outline:2px solid #0ea5e9}
+.calendar-day-status{font-size:11px;color:#334155;margin-top:4px}
+.booking-form-container{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:12px}
+.form-group{margin:10px 0}
+.time-tabs{display:flex;gap:8px}
+.time-tab{border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px;background:#fff;cursor:pointer}
+.time-tab.active{background:#0ea5e9;color:#fff;border-color:#0ea5e9}
+.time-tab.disabled{opacity:.55}
+.dropdown-button{border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px;background:#fff}
+.dropdown-menu{border:1px solid #cbd5e1;border-radius:6px;background:#fff;max-height:220px;overflow:auto;margin-top:8px}
+.dropdown-item,.dropdown-option{display:flex;justify-content:space-between;padding:8px 10px;border-bottom:1px dashed #e5e7eb;cursor:pointer}
+.notice{margin:8px 0;padding:8px 10px;border-radius:6px}
+.book-ride-btn{border:1px solid #0ea5e9;background:#0ea5e9;color:#fff;border-radius:8px;padding:10px 12px}
+.selected-date-display{min-height:24px;color:#334155}
+.location-detect-btn{border:1px solid #cbd5e1;border-radius:6px;padding:6px 8px;background:#fff;margin-left:6px}
+.rate-original{text-decoration:line-through;color:#334155;margin-right:6px}
+.rate-discount{color:#0ea5e9;font-weight:600}
+.hidden{display:none}
+</style>
+</head><body>
+<div class="container">
+  <header class="header"><h1>Raipur Airport ↔ Bhilai Travel Service</h1></header>
+  <main class="main-content">
+    <div class="calendar-container">
+      <div class="calendar-header">
+        <button class="nav-btn" id="prevMonth">&lt;</button>
+        <h2 class="month-year" id="monthYear"></h2>
+        <button class="nav-btn" id="nextMonth">&gt;</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="Choose a pickup date">
+        <div class="weekday">Sun</div><div class="weekday">Mon</div><div class="weekday">Tue</div><div class="weekday">Wed</div><div class="weekday">Thu</div><div class="weekday">Fri</div><div class="weekday">Sat</div>
+      </div>
+    </div>
+    <div class="booking-form-container">
+      <h3 class="form-title">Book Your Ride</h3>
+      <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
+      <form class="booking-form" id="bookingForm">
+        <div class="form-group">
+          <label>Selected Date</label>
+          <div class="selected-date-display" id="selectedDateDisplay"><span class="no-date-selected">Please select a date from the calendar</span></div>
+        </div>
+        <div class="form-group"><label>Name</label><input type="text" id="name" required></div>
+        <div class="form-group"><label>Phone Number</label><input type="tel" id="phone" required></div>
+        <div class="form-group"><label>Pickup Time</label><div class="time-tabs">
+          <button type="button" class="time-tab active" data-time="morning">Morning <span class="time-range">6 am to 6 pm</span></button>
+          <button type="button" class="time-tab" data-time="evening">Evening <span class="time-range">6 pm to 12 pm</span></button>
+        </div></div>
+        <div class="form-group"><label>Trip Direction</label>
+          <div class="trip-type-buttons">
+            <label class="radio-button"><input type="radio" name="tripType" value="home-to-airport" checked> <span class="radio-label">Home to Airport</span></label>
+            <label class="radio-button"><input type="radio" name="tripType" value="airport-to-home"> <span class="radio-label">Airport to Home</span></label>
+          </div>
+        </div>
+        <div class="form-group"><label>Select Vehicle</label>
+          <div class="vehicle-select" id="vehicleSelectControl">
+            <button type="button" id="vehicleDropdown" class="dropdown-button" aria-haspopup="listbox" aria-expanded="false">Select vehicle</button>
+            <div id="vehicleMenu" class="dropdown-menu hidden" role="listbox" aria-labelledby="vehicleDropdown"></div>
+          </div>
+          <select id="vehicleSelect" class="native-select" style="display:none;"></select>
+        </div>
+        <div class="form-group"><label>Rate</label><div id="vehicleRateDisplay">₹0</div></div>
+        <div class="form-group"><label>Pickup/Drop Location</label>
+          <div class="location-input-container"><input type="text" id="location" placeholder="Paste Google Maps link or use Detect Location (coords)"><button type="button" class="location-detect-btn" id="detectLocation">Detect Location</button></div>
+          <div class="location-help">Paste a Google Maps link or click Detect Location</div>
+        </div>
+        <button type="submit" class="book-ride-btn">Book Ride</button>
+      </form>
+    </div>
+  </main>
+</div>
+<script src="/api/frontend.js"></script>
+</body></html>`;
+        return new Response(html, { status: 200, headers: { 'content-type': 'text/html; charset=utf-8' } });
+      }
       return new Response('Not Found', { status: 404 });
     } catch (e) {
       return new Response(JSON.stringify({ error: 'Worker exception', message: String(e && e.message || e) }), { status: 500, headers: { 'content-type': 'application/json' } });
