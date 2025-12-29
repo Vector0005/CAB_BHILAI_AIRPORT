@@ -627,7 +627,7 @@ export default {
           </div>
         </div>
         <div class="booking-form-container">
-          <h3 class="form-title">Book Your Ride</h3>
+          <h3 class="form-title">Book Your Rides</h3>
           <div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
           <form class="booking-form" id="bookingForm">
             <div class="form-group">
