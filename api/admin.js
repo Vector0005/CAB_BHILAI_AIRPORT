@@ -1,3 +1,4 @@
+function extractCoords(loc){ var s=String(loc||'').trim(); if(!s) return ''; if(/^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(s)){ var p=s.split(','); var la=parseFloat(p[0]); var ln=parseFloat(p[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } if(/^https?:\/\//i.test(s)){ try{ var u=new URL(s); var q=u.searchParams.get('q'); if(q && /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(q)){ var pr=q.split(','); var la=parseFloat(pr[0]); var ln=parseFloat(pr[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } }catch(_){ } var at=s.indexOf('@'); if(at>0){ var seg=s.substring(at+1).split(/[\?\s]/)[0]; var parts=seg.split(','); if(parts.length>=2){ var la=parseFloat(parts[0]); var ln=parseFloat(parts[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } } } return s; }
 // Admin Panel JavaScript
 class AdminPanel {
     constructor() {
@@ -22,9 +23,12 @@ class AdminPanel {
     }
 
     checkAuth() {
-        // Temporarily disable authentication: always show admin content
-        this.currentUser = { role: 'ADMIN' };
-        this.showAdminContent();
+        const t = localStorage.getItem('adminToken');
+        if (!t) { this.showLogin(); return; }
+        fetch(`${this.API_BASE_URL}/users/profile`, { headers: { Authorization: `Bearer ${t}` }})
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(d => { if (d && d.user && (String(d.user.role).toUpperCase()==='ADMIN')) { this.currentUser = d.user; this.showAdminContent(); } else { this.showLogin(); } })
+            .catch(() => { this.showLogin(); });
     }
 
     showLogin() {
@@ -159,9 +163,26 @@ class AdminPanel {
                 this.filterBookingsByStatus(e.target.value);
             });
         }
+
+        const lb = document.getElementById('loginButton');
+        if (lb) { lb.addEventListener('click', (e) => { e.preventDefault(); this.handleLogin(); }); }
+        const lo = document.getElementById('logoutBtn');
+        if (lo) { lo.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); }); }
+        const gr = document.getElementById('generateReportBtn');
+        if (gr) { gr.addEventListener('click', (e) => { e.preventDefault(); const sel = document.getElementById('reportRange'); const days = sel ? parseInt(sel.value||'7') : 7; this.loadReportsPage(days); }); }
+        const rr = document.getElementById('reportRange');
+        if (rr) { rr.addEventListener('change', (e) => { const days = parseInt(e.target.value||'7'); this.loadReportsPage(days); }); }
+    }
+
+    authFetch(url, options = {}) {
+        const t = localStorage.getItem('adminToken');
+        const h = Object.assign({}, options.headers || {}, t ? { Authorization: `Bearer ${t}` } : {});
+        return fetch(url, Object.assign({}, options, { headers: h }));
     }
 
     async handleLogin() {
+        if (window.__loginGate === true) return;
+        window.__loginGate = true;
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
 
@@ -181,6 +202,7 @@ class AdminPanel {
                 this.currentUser = data.user;
                 this.showAdminContent();
                 await this.loadDashboardData();
+                this.navigateToPage('dashboard');
                 this.showNotification('Login successful!', 'success');
             } else {
                 this.showNotification('Invalid credentials or insufficient permissions', 'error');
@@ -188,7 +210,7 @@ class AdminPanel {
         } catch (error) {
             console.error('Login error:', error);
             this.showNotification('Login failed. Please try again.', 'error');
-        }
+        } finally { window.__loginGate = false; }
     }
 
     handleLogout() {
@@ -201,7 +223,7 @@ class AdminPanel {
     async loadDashboardData() {
         try {
             // Load dashboard statistics from API
-            const response = await fetch(`${this.API_BASE_URL}/admin/dashboard`);
+            const response = await this.authFetch(`${this.API_BASE_URL}/admin/dashboard`);
             if (response.ok) {
                 const data = await response.json();
                 try {
@@ -231,7 +253,7 @@ class AdminPanel {
 
     async loadBookings() {
         try {
-            const response = await fetch(`${this.API_BASE_URL}/admin/bookings?limit=200`);
+            const response = await this.authFetch(`${this.API_BASE_URL}/admin/bookings?limit=200`);
             const data = await response.json();
             const rows = Array.isArray(data) ? data : (data.bookings || []);
             this.bookings = rows.map(b => ({
@@ -240,8 +262,9 @@ class AdminPanel {
                 phoneNumber: b.phone || b.phoneNumber || '',
                 date: b.pickupDate || b.pickup_date || '',
                 timeSlot: b.pickupTime || b.pickup_time || b.timeSlot || '',
-                tripType: (b.tripType || b.trip_type || ''),
+                tripType: String(b.tripType || b.trip_type || '').toUpperCase(),
                 pickupLocation: b.pickupLocation || b.pickup_location || '',
+                dropoffLocation: b.dropoffLocation || b.dropoff_location || '',
                 flightNumber: b.flight_number || b.flightNumber || '',
                 amount: Number(b.price || b.amount || 0),
                 status: (b.status || '').toLowerCase(),
@@ -376,7 +399,8 @@ class AdminPanel {
             tbody.innerHTML = upcomingBookings.map(b => {
                 const dateText = b.date ? new Date(b.date).toLocaleDateString() : '';
                 const timeText = b.timeSlot || '';
-                const locText = b.pickupLocation || '';
+                const tripUpper = String(b.tripType||'').toUpperCase();
+                const locText = extractCoords(tripUpper==='AIRPORT_TO_HOME' ? (b.dropoffLocation||'') : (b.pickupLocation||''));
                 const status = (b.status || '').toLowerCase();
                 return `
                 <tr>
@@ -430,6 +454,12 @@ class AdminPanel {
                 this.loadVehicles();
                 this.renderVehiclesTable();
                 break;
+            case 'reports':
+                this.loadReportsPage();
+                break;
+            case 'pause':
+                this.initPause();
+                break;
             
         }
     }
@@ -449,6 +479,8 @@ class AdminPanel {
                     ? new Date(b.date).toLocaleDateString()
                     : (b.pickup_date ? new Date(b.pickup_date).toLocaleDateString() : '');
                 const timeText = b.timeSlot || b.pickup_time || b.pickupTime || '';
+                const tripUpper = String(b.tripType || '').toUpperCase();
+                const customerLoc = tripUpper==='AIRPORT_TO_HOME' ? (b.dropoffLocation || '') : (b.pickupLocation || '');
                 return `
                 <tr>
                     <td>${b.id}</td>
@@ -456,7 +488,7 @@ class AdminPanel {
                     <td>${dateText}</td>
                     <td>${timeText}</td>
                     <td>${(b.tripType || '').replace('_',' ')}</td>
-                    <td>${b.pickupLocation || ''}</td>
+                    <td>${extractCoords(customerLoc)}</td>
                     <td>${b.flightNumber || b.flight_number || ''}</td>
                     <td>
                         <span class="status-badge status-${status}">
@@ -678,6 +710,109 @@ class AdminPanel {
         if (evening) await this.updateAvailability(date, { eveningAvailable: undefined });
     }
 
+    initPause() {
+        const startEl = document.getElementById('pauseStart');
+        const endEl = document.getElementById('pauseEnd');
+        const btn = document.getElementById('applyPauseBtn');
+        const liftBtn = document.getElementById('liftPauseBtn');
+        const quickEl = document.getElementById('pauseQuickRange');
+        const resultEl = document.getElementById('pauseResult');
+        if (!btn) return;
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (startEl) { startEl.min = todayStr; if (!startEl.value) startEl.value = todayStr; }
+        if (endEl) { endEl.min = startEl ? startEl.value || todayStr : todayStr; if (!endEl.value) endEl.value = startEl ? startEl.value : todayStr; }
+
+        const syncEndMin = () => { if (endEl && startEl) { endEl.min = startEl.value || todayStr; if (endEl.value < endEl.min) endEl.value = endEl.min; } };
+        if (startEl) startEl.addEventListener('change', syncEndMin);
+
+        const preview = async (s, e) => {
+            const sDate = new Date(s); const eDate = new Date(e);
+            const days = Math.floor((eDate - sDate) / (24*60*60*1000)) + 1;
+            if (resultEl) resultEl.textContent = `${isFinite(days) && days>0 ? days : 0} date(s) selected`;
+        };
+        if (startEl && endEl) { startEl.addEventListener('change', () => preview(startEl.value, endEl.value)); endEl.addEventListener('change', () => preview(startEl.value, endEl.value)); preview(startEl.value, endEl.value); }
+
+        if (quickEl) {
+            quickEl.onchange = () => {
+                const val = parseInt(quickEl.value || '');
+                if (!isNaN(val) && startEl && endEl) {
+                    const s = new Date(); s.setHours(0,0,0,0);
+                    const e = new Date(s); e.setDate(e.getDate() + (val - 1));
+                    startEl.value = s.toISOString().split('T')[0];
+                    endEl.value = e.toISOString().split('T')[0];
+                    syncEndMin(); preview(startEl.value, endEl.value);
+                }
+            };
+        }
+
+        btn.onclick = async () => {
+            const s = (startEl && startEl.value) ? startEl.value : '';
+            const e = (endEl && endEl.value) ? endEl.value : '';
+            if (!s || !e) { this.showNotification('Select start and end dates', 'error'); return; }
+            const sDate = new Date(s);
+            const eDate = new Date(e);
+            if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate < sDate) { this.showNotification('Invalid date range', 'error'); return; }
+            btn.disabled = true;
+            btn.textContent = 'Applying...';
+            try {
+                const resp = await fetch(`${this.API_BASE_URL}/availability/bulk-update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ startDate: s, endDate: e, morningAvailable: false, eveningAvailable: false })
+                });
+                const json = await resp.json();
+                if (resp.ok) {
+                    if (resultEl) resultEl.textContent = `Service paused for ${json.updatedDates || 0} date(s)`;
+                    this.showNotification('Pause applied', 'success');
+                    await this.loadAvailability();
+                    this.renderAvailabilityTable();
+                } else {
+                    this.showNotification(json.error || 'Failed to apply pause', 'error');
+                }
+            } catch (_) {
+                this.showNotification('Failed to apply pause', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Apply Pause';
+            }
+        };
+
+        if (liftBtn) {
+            liftBtn.onclick = async () => {
+                const s = (startEl && startEl.value) ? startEl.value : '';
+                const e = (endEl && endEl.value) ? endEl.value : '';
+                if (!s || !e) { this.showNotification('Select start and end dates', 'error'); return; }
+                const sDate = new Date(s);
+                const eDate = new Date(e);
+                if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate < sDate) { this.showNotification('Invalid date range', 'error'); return; }
+                liftBtn.disabled = true;
+                liftBtn.textContent = 'Lifting...';
+                try {
+                    const resp = await fetch(`${this.API_BASE_URL}/availability/bulk-update`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ startDate: s, endDate: e, morningAvailable: true, eveningAvailable: true })
+                    });
+                    const json = await resp.json();
+                    if (resp.ok) {
+                        if (resultEl) resultEl.textContent = `Pause lifted for ${json.updatedDates || 0} date(s)`;
+                        this.showNotification('Pause lifted', 'success');
+                        await this.loadAvailability();
+                        this.renderAvailabilityTable();
+                    } else {
+                        this.showNotification(json.error || 'Failed to lift pause', 'error');
+                    }
+                } catch (_) {
+                    this.showNotification('Failed to lift pause', 'error');
+                } finally {
+                    liftBtn.disabled = false;
+                    liftBtn.textContent = 'Lift Pause';
+                }
+            };
+        }
+    }
+
     viewBooking(bookingId) {
         const booking = this.bookings.find(b => String(b.id) === String(bookingId));
         if (!booking) { this.showNotification('Booking not found', 'error'); return; }
@@ -700,7 +835,7 @@ class AdminPanel {
             <div><strong>Date:</strong> ${dateText}</div>
             <div><strong>Time:</strong> ${timeText}</div>
             <div><strong>Trip:</strong> ${tripText}</div>
-            <div><strong>Location:</strong> ${booking.pickupLocation || booking.pickup_location || ''}</div>
+            <div><strong>Location (coords):</strong> ${extractCoords(((String(booking.tripType||'').toUpperCase()==='AIRPORT_TO_HOME') ? (booking.dropoffLocation||booking.dropoff_location||'') : (booking.pickupLocation||booking.pickup_location||'')))}</div>
             <div><strong>Flight Number:</strong> ${booking.flightNumber || booking.flight_number || ''}</div>
             <div><strong>Amount:</strong> ₹${amountNum}</div>
             <div><strong>Status:</strong> ${(booking.status || '')}</div>
@@ -876,12 +1011,12 @@ class AdminPanel {
                     <td>${new Date(booking.date).toLocaleDateString()}</td>
                     <td>${booking.timeSlot}</td>
                     <td>${booking.tripType}</td>
-                    <td>${booking.pickupLocation}</td>
-                    <td>
-                        <span class="status-badge status-${booking.status}">
-                            ${booking.status}
-                        </span>
-                    </td>
+                    <td>${extractCoords((String(booking.tripType||'').toUpperCase()==='AIRPORT_TO_HOME' ? (booking.dropoffLocation||'') : (booking.pickupLocation||'')))}</td>
+                <td>
+                    <span class="status-badge status-${booking.status}">
+                        ${booking.status}
+                    </span>
+                </td>
                     <td>₹${booking.amount}</td>
                     <td>
                         <div class="action-buttons">
@@ -915,9 +1050,183 @@ class AdminPanel {
     }
 
     showNotification(message, type) {
-        // Simple notification using alert for now
-        // In a real app, you'd want a proper notification system
-        alert(`${type.toUpperCase()}: ${message}`);
+        if (typeof window.notify === 'function') { window.notify(String(message||''), String(type||'info')); return; }
+        try { console.log(String(type||'info').toUpperCase()+': '+String(message||'')); } catch(_) {}
+    }
+
+    async loadReportsPage(days = 7) {
+        const container = document.getElementById('reportsContent');
+        if (container) container.innerHTML = '<div class="loading"><div class="spinner"></div>Loading report...</div>';
+        let data = null;
+        try {
+            const end = new Date(); const start = new Date(); start.setDate(end.getDate() - days + 1);
+            const qs = `?startDate=${encodeURIComponent(start.toISOString())}&endDate=${encodeURIComponent(end.toISOString())}`;
+            const resp = await this.authFetch(`${this.API_BASE_URL}/admin/analytics${qs}`);
+            if (resp.ok) data = await resp.json();
+        } catch(_) {}
+        let trends = null;
+        try {
+            const dresp = await this.authFetch(`${this.API_BASE_URL}/admin/dashboard`);
+            if (dresp.ok) {
+                const dj = await dresp.json();
+                trends = dj && dj.bookingTrends ? dj.bookingTrends : null;
+            }
+        } catch(_) {}
+        try { if (!this.bookings || !this.bookings.length) await this.loadBookings(); } catch(_) {}
+        const rowsRange = this.filterBookingsByRange(this.bookings, days);
+        if (!data || (!Array.isArray(data.bookingsByStatus) || data.bookingsByStatus.length===0)) {
+            data = this.buildClientAnalytics(rowsRange);
+        }
+        if (!trends) {
+            try { trends = this.buildTrendsFromBookings(rowsRange, days); } catch(_) {}
+        }
+        data.bookingTrends = trends || [];
+        this.renderReports(data, days);
+    }
+
+    buildClientAnalytics(rows) {
+        rows = Array.isArray(rows) ? rows.slice() : [];
+        const byStatus = {};
+        const byTrip = {};
+        let totalRevenue = 0;
+        let start = null, end = null;
+        rows.forEach(b => {
+            const st = String(b.status||'').toUpperCase();
+            byStatus[st] = (byStatus[st]||0) + 1;
+            const tt = String(b.tripType||'').toUpperCase();
+            byTrip[tt] = (byTrip[tt]||0) + 1;
+            const d = b.date || b.pickup_date || b.createdAt || b.created_at;
+            if (d) {
+                const dt = new Date(d);
+                if (!start || dt < start) start = dt;
+                if (!end || dt > end) end = dt;
+            }
+            const stl = st.toLowerCase();
+            if (stl==='confirmed' || stl==='completed') totalRevenue += Number(b.amount || b.price || 0);
+        });
+        const revenueByTripType = Object.keys(byTrip).map(k => ({ tripType: k, _sum: { price: rows.filter(r => String(r.tripType||'').toUpperCase()===k && ['confirmed','completed'].includes(String(r.status||'').toLowerCase())).reduce((s, r) => s + Number(r.amount || r.price || 0), 0) } }));
+        const bookingsByStatus = Object.keys(byStatus).map(k => ({ status: k, _count: byStatus[k] }));
+        const bookingsByTripType = Object.keys(byTrip).map(k => ({ tripType: k, _count: byTrip[k] }));
+        return { bookingsByStatus, bookingsByTripType, revenueByTripType, dateRange: { start: start ? start.toISOString() : '', end: end ? end.toISOString() : '' } };
+    }
+
+    buildTrendsFromBookings(rows, days = 7) {
+        const now = new Date(); now.setHours(0,0,0,0);
+        const series = [];
+        for (let i = days - 1; i >= 0; i--) {
+            const d = new Date(now); d.setDate(d.getDate() - i);
+            const next = new Date(d); next.setDate(next.getDate() + 1);
+            const count = (rows || []).filter(b => {
+                const dt = new Date(b.date || b.pickup_date || b.createdAt || b.created_at);
+                return dt >= d && dt < next;
+            }).length;
+            series.push({ date: d.toISOString().split('T')[0], bookings: count });
+        }
+        return series;
+    }
+
+    renderReports(data, days = 7) {
+        const container = document.getElementById('reportsContent');
+        if (!container) return;
+        const bs = Array.isArray(data.bookingsByStatus) ? data.bookingsByStatus : [];
+        const bt = Array.isArray(data.bookingsByTripType) ? data.bookingsByTripType : [];
+        const rv = Array.isArray(data.revenueByTripType) ? data.revenueByTripType : [];
+        const tr = Array.isArray(data.bookingTrends) ? data.bookingTrends : [];
+        const getCount = r => Number(((typeof r._count === 'object') ? (r._count._all || 0) : (r._count || r.count || r.counts || 0)));
+        let totalBookings = bs.reduce((s, r) => s + getCount(r), 0);
+        let totalRevenue = rv.reduce((s, r) => s + Number((r._sum && r._sum.price) || r.sum || 0), 0);
+        if ((!totalBookings || !rv.length) && Array.isArray(this.bookings)) {
+            const rowsRange = this.filterBookingsByRange(this.bookings, days);
+            totalBookings = rowsRange.length;
+            totalRevenue = rowsRange.filter(b => ['confirmed','completed'].includes(String(b.status||'').toLowerCase())).reduce((s,b)=>s+Number(b.amount||b.price||0),0);
+        }
+        const fmt = n => '₹' + Number(n || 0).toLocaleString();
+        const rangeText = (data.dateRange && data.dateRange.start && data.dateRange.end) ? (new Date(data.dateRange.start).toLocaleDateString() + ' — ' + new Date(data.dateRange.end).toLocaleDateString()) : '';
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-card"><h3>Total Bookings</h3><div class="stat-number">${totalBookings}</div></div>
+                <div class="stat-card"><h3>Total Revenue</h3><div class="stat-number">${fmt(totalRevenue)}</div></div>
+                <div class="stat-card"><h3>Airport → Home</h3><div class="stat-number">${(bt && bt.length) ? bt.filter(r => String(r.tripType||'').toUpperCase()==='AIRPORT_TO_HOME').reduce((s,r)=>s+getCount(r),0) : this.filterBookingsByRange(this.bookings, days).filter(b=>String(b.tripType||'').toUpperCase()==='AIRPORT_TO_HOME').length}</div></div>
+                <div class="stat-card"><h3>Home → Airport</h3><div class="stat-number">${(bt && bt.length) ? bt.filter(r => String(r.tripType||'').toUpperCase()==='HOME_TO_AIRPORT').reduce((s,r)=>s+getCount(r),0) : this.filterBookingsByRange(this.bookings, days).filter(b=>String(b.tripType||'').toUpperCase()==='HOME_TO_AIRPORT').length}</div></div>
+            </div>
+            ${rangeText ? `<div style="margin:10px 0;color:#7f8c8d;">${rangeText}</div>` : ''}
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
+                <div>
+                    <h3 style="margin:0 0 10px 0;">Bookings by Status</h3>
+                    <canvas id="statusChart" width="700" height="280" style="width:100%;max-width:700px;height:280px"></canvas>
+                    <table>
+                        <thead><tr><th>Status</th><th>Count</th></tr></thead>
+                        <tbody>
+                            ${bs.map(r => `<tr><td>${String(r.status||'')}</td><td>${getCount(r)}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                <div>
+                    <h3 style="margin:0 0 10px 0;">Revenue by Trip Type</h3>
+                    <canvas id="revenueChart" width="700" height="280" style="width:100%;max-width:700px;height:280px"></canvas>
+                    <table>
+                        <thead><tr><th>Trip Type</th><th>Revenue</th></tr></thead>
+                        <tbody>
+                            ${rv.map(r => `<tr><td>${String(r.tripType||'').replace('_',' ')}</td><td>${fmt((r._sum && r._sum.price) || 0)}</td></tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div style="margin-top:20px;">
+                <h3 style="margin:0 0 10px 0;">Booking Trends (Last ${days} days)</h3>
+                <canvas id="trendsChart" width="900" height="300" style="width:100%;max-width:900px;height:300px"></canvas>
+                <table>
+                    <thead><tr><th>Date</th><th>Bookings</th></tr></thead>
+                    <tbody>
+                        ${tr.map(d => `<tr><td>${new Date(d.date).toLocaleDateString()}</td><td>${Number(d.bookings||0)}</td></tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+
+        const palette = ['#3498db','#27ae60','#e67e22','#e74c3c','#9b59b6','#2ecc71','#f1c40f'];
+        const statusCounts = bs.map(r => getCount(r));
+        const statusLabels = bs.map(r => String(r.status||''));
+        const revenueValues = rv.map(r => Number((r._sum && r._sum.price) || 0));
+        const revenueLabels = rv.map(r => String(r.tripType||'').replace('_',' '));
+        const trendValues = tr.map(d => Number(d.bookings||0));
+        const trendLabels = tr.map(d => new Date(d.date).toLocaleDateString());
+
+        const statusCanvas = document.getElementById('statusChart');
+        const revenueCanvas = document.getElementById('revenueChart');
+        const trendsCanvas = document.getElementById('trendsChart');
+        if (statusCanvas && statusCounts.length) this.drawBarChart(statusCanvas, statusLabels, statusCounts, palette);
+        if (revenueCanvas && revenueValues.length) this.drawBarChart(revenueCanvas, revenueLabels, revenueValues, palette);
+        if (trendsCanvas && trendValues.length) this.drawBarChart(trendsCanvas, trendLabels, trendValues, ['#3498db']);
+    }
+
+    drawBarChart(canvas, labels, values, colors) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0,0,w,h);
+        const pad = 40;
+        const max = Math.max(...values, 1);
+        const bw = Math.max(20, Math.floor((w - pad*2) / values.length) - 10);
+        ctx.strokeStyle = '#bbb'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(pad, h - pad); ctx.lineTo(w - pad, h - pad); ctx.stroke();
+        values.forEach((v, i) => {
+            const x = pad + i * (bw + 10);
+            const bh = Math.round((h - pad*2) * (v / max));
+            ctx.fillStyle = colors[i % colors.length];
+            ctx.fillRect(x, h - pad - bh, bw, bh);
+            ctx.fillStyle = '#333'; ctx.font = '12px Segoe UI'; ctx.textAlign = 'center';
+            ctx.fillText(String(labels[i]||''), x + bw/2, h - pad + 16);
+            ctx.fillText(String(v), x + bw/2, h - pad - bh - 6);
+        });
+    }
+
+    filterBookingsByRange(rows, days = 7) {
+        const end = new Date(); const start = new Date(); start.setDate(end.getDate() - days + 1);
+        start.setHours(0,0,0,0); end.setHours(23,59,59,999);
+        return (rows || []).filter(b => {
+            const dt = new Date(b.date || b.pickup_date || b.createdAt || b.created_at);
+            return dt >= start && dt <= end;
+        });
     }
 }
 

@@ -28,6 +28,27 @@
             if (href) return '<a href="' + href + '" target="_blank" rel="noopener">' + (isUrl ? 'Open Map' : s) + '</a>';
             return s;
         }
+        function extractCoords(loc){
+            var s=String(loc||'').trim();
+            if(!s) return '';
+            var mLatLng=/^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(s);
+            if(mLatLng){
+                var parts=s.split(',');
+                var lat=parseFloat(parts[0]);
+                var lng=parseFloat(parts[1]);
+                if(isFinite(lat)&&isFinite(lng)) return lat.toFixed(6)+','+lng.toFixed(6);
+            }
+            if(/^https?:\/\//i.test(s)){
+                try{ var u=new URL(s); var q=u.searchParams.get('q'); if(q && /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(q)){ var p=q.split(','); var la=parseFloat(p[0]); var ln=parseFloat(p[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } }catch(_){ }
+                var atIdx=s.indexOf('@');
+                if(atIdx>0){
+                    var seg=s.substring(atIdx+1).split(/[\?\s]/)[0];
+                    var parts=seg.split(',');
+                    if(parts.length>=2){ var la=parseFloat(parts[0]); var ln=parseFloat(parts[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); }
+                }
+            }
+            return s;
+        }
     </script>
     <style>
         * {
@@ -694,6 +715,20 @@
 </head>
 <body>
     <div class="admin-container">
+        <div id="loginSection" class="login-section" style="display:none;">
+            <div class="login-container">
+                <h2>Admin Login</h2>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" placeholder="admin@raipurtaxi.com">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Enter password">
+                </div>
+                <button id="loginButton" class="login-btn">Login</button>
+            </div>
+        </div>
         
 
         <!-- Admin Content -->
@@ -707,11 +742,12 @@
                     <a href="#" class="nav-item" data-page="drivers" onclick="window.adminPanel && window.adminPanel.navigateToPage('drivers')">👨‍💼 Drivers</a>
                     <a href="#" class="nav-item" data-page="vehicles" onclick="window.adminPanel && window.adminPanel.navigateToPage('vehicles')">🚗 Vehicles</a>
                     <a href="#" class="nav-item" data-page="availability" onclick="window.adminPanel && window.adminPanel.navigateToPage('availability')">📅 Availability</a>
+                    <a href="#" class="nav-item" data-page="pause" onclick="window.adminPanel && window.adminPanel.navigateToPage('pause')">🔇 Pause Service</a>
                     <a href="#" class="nav-item" data-page="users" onclick="window.adminPanel && window.adminPanel.navigateToPage('users')">👥 Users</a>
                     <a href="#" class="nav-item" data-page="reports" onclick="window.adminPanel && window.adminPanel.navigateToPage('reports')">📈 Reports</a>
                     <a href="#" class="nav-item" data-page="data" onclick="window.adminPanel && window.adminPanel.navigateToPage('data')">📊 Data Export</a>
                 </nav>
-                
+                <button id="logoutBtn" class="logout-btn">Logout</button>
             </div>
 
             <!-- Main Content -->
@@ -905,6 +941,30 @@
                     </div>
                 </div>
 
+                <!-- Pause Service Page -->
+                <div id="pausePage" class="page-content">
+                    <div class="table-container">
+                        <div class="table-header">
+                            <h3>🔇 Pause Service</h3>
+                        </div>
+                        <div style="padding:16px; display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; align-items:end;">
+                            <div class="form-group">
+                                <label for="pauseStart">Start date</label>
+                                <input type="text" id="pauseStart" class="date-input" readonly placeholder="YYYY-MM-DD">
+                            </div>
+                            <div class="form-group">
+                                <label for="pauseEnd">End date</label>
+                                <input type="text" id="pauseEnd" class="date-input" readonly placeholder="YYYY-MM-DD">
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <button id="applyPauseBtn" class="btn btn-danger">Apply Pause</button>
+                                <button id="liftPauseBtn" class="btn btn-success">Lift Pause</button>
+                            </div>
+                        </div>
+                        <div id="pauseResult" style="padding:16px; color:#2c3e50;"></div>
+                    </div>
+                </div>
+
                 <!-- Users Page -->
                 <div id="usersPage" class="page-content">
                     <div class="table-container">
@@ -938,21 +998,17 @@
                     <div class="table-container">
                         <div class="table-header">
                             <h3>📈 Reports & Analytics</h3>
-                            <div>
-                                <button class="btn btn-primary">📊 Generate Report</button>
-                                <button class="btn btn-success">📥 Export Data</button>
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <label for="reportRange" style="color:#2c3e50; font-weight:600;">Range:</label>
+                                <select id="reportRange" class="search-box" style="width:auto;">
+                                    <option value="7">Last 7 days</option>
+                                    <option value="30">Last 30 days</option>
+                                </select>
+                                <button id="generateReportBtn" class="btn btn-primary">📊 Generate Report</button>
+                                <button id="exportReportBtn" class="btn btn-success">📥 Export Data</button>
                             </div>
                         </div>
-                        <div style="padding: 40px; text-align: center; color: #7f8c8d;">
-                            <h3>📈 Advanced Analytics Coming Soon!</h3>
-                            <p>Detailed reports and analytics will be available here.</p>
-                            <div style="margin-top: 20px;">
-                                <p>✅ Revenue Reports</p>
-                                <p>✅ Booking Trends</p>
-                                <p>✅ Customer Analytics</p>
-                                <p>✅ Driver Performance</p>
-                            </div>
-                        </div>
+                        <div id="reportsContent" style="padding: 20px;"></div>
                     </div>
                 </div>
 
@@ -1086,16 +1142,59 @@
                     <button type="submit" class="btn btn-primary" id="saveDriverBtn">Save Driver</button>
                 </div>
             </form>
-        </div>
+    </div>
     </div>
 
-    
+    <style>
+        .toast-container{position:fixed;top:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+        .toast{min-width:240px;max-width:360px;padding:12px 14px;border-radius:6px;color:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.2);opacity:.95;transition:opacity .3s ease,transform .3s ease;transform:translateY(0)}
+        .toast-success{background:#28a745}
+        .toast-error{background:#dc3545}
+        .toast-info{background:#17a2b8}
+        .toast-warning{background:#ffc107;color:#333}
+        .toast.fade{opacity:0;transform:translateY(-8px)}
+    </style>
+    <div id="toastContainer" class="toast-container"></div>
     <script>
+        function notify(text, type){ var c=document.getElementById('toastContainer'); if(!c) return; var el=document.createElement('div'); el.className='toast toast-'+(type||'info'); el.textContent=String(text||''); c.appendChild(el); setTimeout(function(){ el.classList.add('fade'); setTimeout(function(){ if(el && el.parentNode) el.parentNode.removeChild(el); }, 300); }, 3500); }
         // Load admin script dynamically based on environment
         const adminScript = document.createElement('script');
         adminScript.src = getApiUrl('/api/admin.js?v=stable-latest');
         adminScript.defer = true;
         document.head.appendChild(adminScript);
+    </script>
+    <style>
+        .date-input{padding:10px 12px;border:1px solid #dfe3e6;border-radius:8px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);font-size:14px;color:#2c3e50}
+        .date-input:focus{outline:none;border-color:#3498db;box-shadow:0 0 0 3px rgba(52,152,219,.15)}
+        .dp-picker{position:absolute;z-index:3000;background:#fff;border:1px solid #ecf0f1;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);width:280px;padding:10px}
+        .dp-header{display:flex;align-items:center;justify-content:space-between}
+        .dp-title{font-weight:600;color:#2c3e50}
+        .dp-nav{background:#f5f7fa;border:1px solid #dfe3e6;border-radius:8px;padding:4px 10px;cursor:pointer;color:#2c3e50}
+        .dp-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:8px}
+        .dp-week div{font-size:12px;color:#7f8c8d;text-align:center}
+        .dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:6px}
+        .dp-day{background:#fff;border:1px solid #dfe3e6;border-radius:8px;padding:8px 0;text-align:center;color:#2c3e50;cursor:pointer}
+        .dp-day:hover{background:#eef2f6}
+        .dp-day.selected{background:#cde9ff;border-color:#7fc3ff;color:#004085}
+        .dp-day.disabled{opacity:.5;cursor:not-allowed}
+        .dp-day.placeholder{visibility:hidden;border:none;background:transparent}
+    </style>
+    <script>
+        (function(){
+            function fmt(d){var y=d.getFullYear();var m=String(d.getMonth()+1).padStart(2,'0');var da=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+da}
+            function parse(s){if(!s)return null;var d=new Date(s);d.setHours(0,0,0,0);return isNaN(d)?null:d}
+            var open=null;
+            function build(input){var rect=input.getBoundingClientRect();var top=rect.bottom+window.scrollY+4;var left=rect.left+window.scrollX;var val=parse(input.value);var min=parse(input.min);var link=input.id==='pauseEnd'?parse(document.getElementById('pauseStart')?.value):null;var minDate=link&&min?(link>min?link:min):(link||min);var base=val||minDate||new Date();base.setHours(0,0,0,0);var y=base.getFullYear();var m=base.getMonth();var cont=document.createElement('div');cont.className='dp-picker';cont.style.top=top+'px';cont.style.left=left+'px';var h=document.createElement('div');h.className='dp-header';var prev=document.createElement('button');prev.type='button';prev.className='dp-nav';prev.textContent='◀';var title=document.createElement('div');title.className='dp-title';title.textContent=new Date(y,m,1).toLocaleString(undefined,{month:'long',year:'numeric'});var next=document.createElement('button');next.type='button';next.className='dp-nav';next.textContent='▶';h.appendChild(prev);h.appendChild(title);h.appendChild(next);var week=document.createElement('div');week.className='dp-week';['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(w){var el=document.createElement('div');el.textContent=w;week.appendChild(el)});var grid=document.createElement('div');grid.className='dp-grid';function draw(){grid.innerHTML='';title.textContent=new Date(y,m,1).toLocaleString(undefined,{month:'long',year:'numeric'});var first=new Date(y,m,1);var last=new Date(y,m+1,0);var off=first.getDay();for(var i=0;i<off;i++){var ph=document.createElement('div');ph.className='dp-day placeholder';grid.appendChild(ph)}for(var d=1;d<=last.getDate();d++){var cell=document.createElement('button');cell.type='button';cell.className='dp-day';var dd=new Date(y,m,d);dd.setHours(0,0,0,0);cell.textContent=String(d);var disabled=minDate&&dd<minDate;if(disabled){cell.classList.add('disabled');cell.disabled=true}else{if(val&&dd.getTime()===val.getTime())cell.classList.add('selected');cell.addEventListener('click',function(){var sel=new Date(y,m,parseInt(this.textContent));sel.setHours(0,0,0,0);input.value=fmt(sel);close();input.dispatchEvent(new Event('change'))})}grid.appendChild(cell)}}
+            function close(){if(open&&open.parentNode){open.parentNode.removeChild(open)}open=null;document.removeEventListener('click',onDoc,true);document.removeEventListener('keydown',onKey,true)}
+            function onDoc(e){if(open&&e.target!==open&&e.target!==input&&!open.contains(e.target))close()}
+            function onKey(e){if(e.key==='Escape')close()}
+            prev.addEventListener('click',function(){m--;if(m<0){m=11;y--}draw()});
+            next.addEventListener('click',function(){m++;if(m>11){m=0;y++}draw()});
+            cont.appendChild(h);cont.appendChild(week);cont.appendChild(grid);document.body.appendChild(cont);open=cont;draw();setTimeout(function(){document.addEventListener('click',onDoc,true);document.addEventListener('keydown',onKey,true)},0)
+            }
+            function attach(id){var el=document.getElementById(id);if(!el)return;['focus','click'].forEach(function(evt){el.addEventListener(evt,function(){if(open) { var o=open; if(o.parentNode) o.parentNode.removeChild(o); open=null; } build(el)})})}
+            attach('pauseStart');attach('pauseEnd');
+        })()
     </script>
     <script>
         // Consolidated DOMContentLoaded event listener
@@ -1159,14 +1258,15 @@
                         var rows=upcoming.map(function(b){
                             var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                             var timeText=b.pickup_time||'';
-                            var loc=b.pickup_location||'';
+                            var trip=(b.trip_type||b.tripType||'').toUpperCase();
+                            var loc = trip==='AIRPORT_TO_HOME' ? (b.dropoff_location||b.dropoffLocation||'') : (b.pickup_location||b.pickupLocation||'');
                             var status=(b.status||'').toLowerCase();
                             return '\n<tr>'+
                                '<td>'+b.id+'</td>'+
                                '<td>'+(b.name||b.customerName||'')+'</td>'+
                                '<td>'+dateText+'</td>'+
                                '<td>'+timeText+'</td>'+
-                               '<td>'+formatLocation(loc)+'</td>'+
+                               '<td>'+extractCoords(loc)+'</td>'+
                                '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                                '<td>₹'+Number(b.price||b.amount||0)+'</td>'+
@@ -1196,14 +1296,15 @@
                             var rows=upcoming.map(function(b){
                                 var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                                 var timeText=b.pickup_time||'';
-                                var loc=b.pickup_location||'';
+                                var trip=(b.trip_type||b.tripType||'').toUpperCase();
+                                var loc = trip==='AIRPORT_TO_HOME' ? (b.dropoff_location||b.dropoffLocation||'') : (b.pickup_location||b.pickupLocation||'');
                                 var status=(b.status||'').toLowerCase();
                                 return '\n<tr>'+
                                    '<td>'+b.id+'</td>'+
                                    '<td>'+(b.name||b.customerName||'')+'</td>'+
                                    '<td>'+dateText+'</td>'+
                                    '<td>'+timeText+'</td>'+
-                                   '<td>'+formatLocation(loc)+'</td>'+
+                                   '<td>'+extractCoords(loc)+'</td>'+
                                    '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                    '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                                    '<td>₹'+Number(b.price||b.amount||0)+'</td>'+
@@ -1307,7 +1408,7 @@
                     '<td>'+dateText+'</td>'+
                     '<td>'+timeText+'</td>'+
                     '<td>'+((b.trip_type||'').replace('_',' '))+'</td>'+
-                    '<td>'+formatLocation(b.pickup_location||'')+'</td>'+
+                    '<td>'+extractCoords(((b.trip_type||'').toUpperCase()==='AIRPORT_TO_HOME' ? (b.dropoff_location||'') : (b.pickup_location||'')))+'</td>'+
                     '<td>'+(b.flight_number||'')+'</td>'+
                     '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
                     '<td>₹'+Number(b.price||0)+'</td>'+
@@ -1555,12 +1656,14 @@
                             var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                             var timeText=b.pickup_time||'';
                             var trip=(b.trip_type||'').replace('_',' ');
+                            var tripUpper=(b.trip_type||'').toUpperCase();
+                            var customerLoc = tripUpper==='AIRPORT_TO_HOME' ? (b.dropoff_location||'') : (b.pickup_location||'');
                             body.innerHTML='<div><strong>ID:</strong> '+b.id+'</div>'+
                                 '<div><strong>Customer:</strong> '+(b.name||'')+'</div>'+
                                 '<div><strong>Date:</strong> '+dateText+'</div>'+
                                 '<div><strong>Time:</strong> '+timeText+'</div>'+
                                 '<div><strong>Trip:</strong> '+trip+'</div>'+
-                                '<div><strong>Location:</strong> '+formatLocation(b.pickup_location||'')+'</div>'+
+                                '<div><strong>Location (coords):</strong> '+extractCoords(customerLoc||'')+'</div>'+
                                 '<div><strong>Amount:</strong> ₹'+Number(b.price||0)+'</div>'+
                                 '<div><strong>Status:</strong> '+(b.status||'')+'</div>';
                             modal.style.display='flex';
@@ -1777,7 +1880,8 @@
                 const bookingId = booking.id || '';
                 const customerName = booking.name || booking.customerName || '';
                 const contactNumber = booking.phone || booking.phoneNumber || '';
-                const pickupLocation = booking.pickup_location || booking.pickupLocation || '';
+                const tripUpper = (booking.trip_type || booking.tripType || '').toUpperCase();
+                const customerLocation = tripUpper==='AIRPORT_TO_HOME' ? (booking.dropoff_location || booking.dropoffLocation || '') : (booking.pickup_location || booking.pickupLocation || '');
                 const pickupDate = booking.pickup_date || booking.pickupDate || '';
                 const timeSlot = booking.pickup_time || booking.pickupTime || booking.timeSlot || '';
                 const tripType = (booking.trip_type || booking.tripType || '').replace('_', ' ');
@@ -1791,7 +1895,7 @@
                     <td>${bookingId}</td>
                     <td>${customerName}</td>
                     <td>${contactNumber}</td>
-                    <td>${pickupLocation}</td>
+                    <td>${extractCoords(customerLocation)}</td>
                     <td>${pickupDate ? new Date(pickupDate).toLocaleDateString() : ''}</td>
                     <td>${timeSlot}</td>
                     <td>${tripType}</td>
@@ -1808,7 +1912,7 @@
             const filteredData = getFilteredData();
             
             if (filteredData.length === 0) {
-                alert('No data to export');
+                notify('No data to export','info');
                 return;
             }
 
@@ -1820,7 +1924,7 @@
                     booking.id || '',
                     `"${(booking.name || booking.customerName || '').replace(/"/g, '""')}"`,
                     `"${(booking.phone || booking.phoneNumber || '').replace(/"/g, '""')}"`,
-                    `"${(booking.pickup_location || booking.pickupLocation || '').replace(/"/g, '""')}"`,
+                    (function(){ var t=(booking.trip_type||booking.tripType||'').toUpperCase(); var loc=t==='AIRPORT_TO_HOME' ? (booking.dropoff_location||booking.dropoffLocation||'') : (booking.pickup_location||booking.pickupLocation||''); var c=extractCoords(loc); return `"${String(c).replace(/"/g,'""')}"`; })(),
                     booking.pickup_date || booking.pickupDate || '',
                     `"${(booking.pickup_time || booking.pickupTime || booking.timeSlot || '').replace(/"/g, '""')}"`,
                     `"${(booking.trip_type || booking.tripType || '').replace(/"/g, '""')}"`,
@@ -1839,7 +1943,7 @@
             const filteredData = getFilteredData();
             
             if (filteredData.length === 0) {
-                alert('No data to export');
+                notify('No data to export','info');
                 return;
             }
 
@@ -1867,7 +1971,7 @@
                                     <td>${booking.id || ''}</td>
                                     <td>${booking.name || booking.customerName || ''}</td>
                                     <td>${booking.phone || booking.phoneNumber || ''}</td>
-                                    <td>${booking.pickup_location || booking.pickupLocation || ''}</td>
+                                    <td>${(function(){ var t=(booking.trip_type||booking.tripType||'').toUpperCase(); var loc=t==='AIRPORT_TO_HOME' ? (booking.dropoff_location||booking.dropoffLocation||'') : (booking.pickup_location||booking.pickupLocation||''); return extractCoords(loc); })()}</td>
                                     <td>${booking.pickup_date || booking.pickupDate || ''}</td>
                                     <td>${booking.pickup_time || booking.pickupTime || booking.timeSlot || ''}</td>
                                     <td>${(booking.trip_type || booking.tripType || '').replace('_', ' ')}</td>
@@ -2111,21 +2215,21 @@
                 
                 // Validate required fields
                 if (!driverData.name || !driverData.email || !driverData.phone || !driverData.license) {
-                    alert('Please fill in all required fields (Name, Email, Phone, License)');
+                    notify('Please fill in all required fields (Name, Email, Phone, License)','error');
                     return;
                 }
                 
                 // Email validation
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(driverData.email)) {
-                    alert('Please enter a valid email address');
+                    notify('Please enter a valid email address','error');
                     return;
                 }
                 
                 // Phone validation (10 digits required)
                 const phoneRegex = /^\d{10}$/;
                 if (!phoneRegex.test(driverData.phone)) {
-                    alert('Phone number must be exactly 10 digits');
+                    notify('Phone number must be exactly 10 digits','error');
                     return;
                 }
                 
@@ -2152,18 +2256,18 @@
                 
                 if (response.ok) {
                     const result = await response.json();
-                    alert(driverId ? 'Driver updated successfully!' : 'Driver added successfully!');
+                    notify(driverId ? 'Driver updated successfully!' : 'Driver added successfully!','success');
                     closeDriverModal();
                     if (typeof fillDrivers === 'function') { await fillDrivers(); }
                 } else {
                     let message = 'Error saving driver';
                     try { const errorData = await response.json(); message = errorData.error || errorData.message || message; } catch(_){}
-                    alert(message);
+                    notify(message,'error');
                 }
                 
             } catch (error) {
                 console.error('Error saving driver:', error);
-                alert('Error saving driver. Please try again.');
+                notify('Error saving driver. Please try again.','error');
             } finally {
                 // Re-enable button
                 saveBtn.disabled = false;
@@ -2252,19 +2356,19 @@
                         
                         if (response.ok) {
                             try { await response.json(); } catch(_){}
-                            alert('Driver deleted successfully!');
+                            notify('Driver deleted successfully!','success');
                             if (typeof fillDrivers === 'function') { await fillDrivers(); }
                         } else {
                             let msg = 'Error deleting driver';
                             try { const errorData = await response.json(); msg = errorData.error || errorData.message || msg; } catch(_){}
-                            alert(msg);
+                            notify(msg,'error');
                             deleteBtn.disabled = false;
                             deleteBtn.textContent = originalText;
                         }
                         
                     } catch (error) {
                         console.error('Error deleting driver:', error);
-                        alert('Error deleting driver. Please try again.');
+                        notify('Error deleting driver. Please try again.','error');
                         deleteBtn.disabled = false;
                         deleteBtn.textContent = 'Delete';
                     }
@@ -2300,13 +2404,15 @@
                     const b = rows.find(function(x){return String(x.id)===String(bookingId)});
                     var dateText=b&&b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                     var timeText=b&&b.pickup_time||'';
+                    var tripUpper=(b?(b.trip_type||''):'' ).toUpperCase();
+                    var customerLoc = tripUpper==='AIRPORT_TO_HOME' ? (b?b.dropoff_location||'':'') : (b?b.pickup_location||'':'');
                     body.innerHTML = '<div><strong>ID:</strong> '+(b?b.id:'')+'</div>'+
                                      '<div><strong>Customer:</strong> '+(b?(b.name||''):'')+'</div>'+
                                      '<div><strong>Date:</strong> '+dateText+'</div>'+
                                      '<div><strong>Time:</strong> '+timeText+'</div>'+
                                      '<div><strong>Trip:</strong> '+(b?((b.trip_type||'').replace('_',' ')):'')+'</div>'+
-                                     '<div><strong>Location:</strong> '+(b?formatLocation(b.pickup_location||''):'')+'</div>'+
-                                     '<div><strong>Amount:</strong> ₹'+(b?Number(b.price||0):0)+'</div>';
+                                     '<div><strong>Location (coords):</strong> '+extractCoords(customerLoc||'')+'</div>'+
+                                     '<div><strong>Amount:</strong> ₹'+(b?Number(b.price||0):0)+'</div>'; 
                 } catch(_) {
                     body.textContent = 'Proceed with this action?';
                 }

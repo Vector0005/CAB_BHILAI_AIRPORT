@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Raipur Airport ↔ Bhilai Travel Service</title>
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -28,9 +28,9 @@
                 <!-- Calendar Section -->
                 <div class="calendar-container">
                     <div class="calendar-header">
-                        <button class="nav-btn" id="prevMonth">‹</button>
+                        <button class="nav-btn" id="prevMonth">&lt;</button>
                         <h2 class="month-year" id="monthYear">November 2024</h2>
-                        <button class="nav-btn" id="nextMonth">›</button>
+                        <button class="nav-btn" id="nextMonth">&gt;</button>
                     </div>
                     
                     <div class="calendar-grid" id="calendarGrid" role="grid" aria-label="Choose a pickup date">
@@ -128,9 +128,9 @@
 
 
                         <div class="form-group">
-                            <label for="location">Pickup Location</label>
+                            <label for="location">Pickup/Drop Location</label>
                             <div class="location-input-container">
-                                <input type="text" id="location" name="location" placeholder="Paste Google Maps link or type address" required>
+                                <input type="text" id="location" name="location" placeholder="Paste Google Maps link or use Detect Location (coords)">
                                 <button type="button" class="location-detect-btn" id="detectLocation">
                                     <svg class="location-icon" viewBox="0 0 24 24" fill="none">
                                         <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/>
@@ -139,7 +139,7 @@
                                 </button>
                             </div>
                             <div class="location-help">
-                                💡 Tip: You can paste a Google Maps link or type your address
+                                💡 Tip: Paste a Google Maps link or click Detect Location to fill coordinates
                             </div>
                         </div>
 
@@ -164,10 +164,64 @@
         </main>
     </div>
 
+    <style>
+        .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:3000}
+        .modal{background:#fff;border-radius:10px;max-width:720px;width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+        .modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #e5e7eb;font-weight:600}
+        .modal-body{padding:0}
+        .modal-footer{padding:12px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid #e5e7eb}
+        #mapCanvas{width:720px;max-width:92vw;height:380px}
+        .hidden{display:none}
+      .modal-btn{padding:8px 12px;border-radius:6px;border:1px solid #cbd5e1;background:#0ea5e9;color:#fff}
+      .modal-btn-secondary{background:#fff;color:#334155}
+    </style>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" crossorigin="anonymous" defer></script>
+    <div id="mapOverlay" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <span>Calibrate Location</span>
+          <button id="closeMap" class="modal-btn modal-btn-secondary">Close</button>
+        </div>
+        <div class="modal-body">
+          <div id="mapCanvas"></div>
+        </div>
+        <div class="modal-footer">
+          <button id="useCoords" class="modal-btn">Use These Coordinates</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirmationOverlay" class="modal-overlay hidden">
+      <div class="modal">
+        <div class="modal-header">
+          <span>Booking Confirmed</span>
+          <button id="closeConfirm" class="modal-btn modal-btn-secondary">Close</button>
+        </div>
+        <div class="modal-body">
+          <div style="padding:12px 16px" id="confirmationBody">
+            <div id="confirmNumber"></div>
+            <div id="confirmDate"></div>
+            <div id="confirmTime"></div>
+            <div id="confirmTrip"></div>
+            <div id="confirmPickup"></div>
+            <div id="confirmDropoff"></div>
+            <div id="confirmPrice"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="okConfirm" class="modal-btn">OK</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Hidden Admin Access Element -->
     <div id="adminAccess" class="admin-access-hidden" style="position: fixed; top: 0; left: 0; width: 10px; height: 10px; cursor: pointer; z-index: 9999;" title="Admin Access (Triple-click or Ctrl+Shift+A)"></div>
     
-    <script src="/script-backend.js"></script>
+    <script src="script-backend.js?v=es5" defer></script>
+    <script>
+      try{ setTimeout(function(){ if(!window.L){ var n=document.getElementById('notice'); if(n){ n.textContent='Map library failed to load. Detect Location still works.'; n.classList.remove('hidden'); n.style.background='#fff3cd'; } } }, 300); }catch(_){ }
+    </script>
     <script>
         // Hidden admin access functionality
         let adminClickCount = 0;

@@ -29,9 +29,61 @@ export default {
         const sp = url.searchParams;
         const readBody = async () => { try { return await request.json(); } catch (_) { return null; } };
         const toISO = (v) => { try { const d = new Date(v); return d.toISOString(); } catch (_) { return String(v || ''); } };
+        const b64u = (str) => btoa(str).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+        const b64uAB = (ab) => {
+          const bytes = new Uint8Array(ab);
+          let bin = '';
+          for (let i=0;i<bytes.length;i++){ bin += String.fromCharCode(bytes[i]); }
+          return b64u(bin);
+        };
+        const signJWT = async (payload, secret) => {
+          const header = { alg: 'HS256', typ: 'JWT' };
+          const now = Math.floor(Date.now()/1000);
+          const body = Object.assign({}, payload, { iat: now, exp: now + 7*24*60*60 });
+          const h = b64u(JSON.stringify(header));
+          const p = b64u(JSON.stringify(body));
+          const enc = new TextEncoder();
+          const key = await crypto.subtle.importKey('raw', enc.encode(secret||''), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const sig = await crypto.subtle.sign('HMAC', key, enc.encode(h + '.' + p));
+          const s = b64uAB(sig);
+          return h + '.' + p + '.' + s;
+        };
+        const verifyJWT = async (token, secret) => {
+          const parts = String(token||'').split('.');
+          if (parts.length !== 3) return null;
+          const [h,p,s] = parts;
+          const enc = new TextEncoder();
+          const key = await crypto.subtle.importKey('raw', enc.encode(secret||''), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+          const sig = await crypto.subtle.sign('HMAC', key, enc.encode(h + '.' + p));
+          const expected = b64uAB(sig);
+          if (expected !== s) return null;
+          try { const payload = JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/'))); if (payload.exp && Math.floor(Date.now()/1000) > payload.exp) return null; return payload; } catch (_) { return null; }
+        };
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
-          return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase });
+          return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
         }
+        if (pathname === '/api/users/login' && method === 'POST') {
+          const body = await readBody();
+          const email = String(body?.email||'').trim().toLowerCase();
+          const pass = String(body?.password||'');
+          const adminEmail = String(env.ADMIN_EMAIL||'').trim().toLowerCase();
+          const adminPass = String((env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD)||'');
+          if (!adminEmail || !adminPass) return json({ error: 'Admin credentials not configured' }, 500);
+          if (email === adminEmail && pass === adminPass) {
+            const token = await signJWT({ userId: 'ADMIN', email: adminEmail, role: 'ADMIN' }, env.JWT_SECRET||'');
+            return json({ message: 'Login successful', user: { id: 'ADMIN', name: 'Admin', email: adminEmail, role: 'ADMIN' }, token });
+          }
+          return json({ error: 'Invalid credentials' }, 401);
+        }
+        if (pathname === '/api/users/profile' && method === 'GET') {
+          const auth = request.headers.get('authorization') || '';
+          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
+          const token = auth.substring(7);
+          const payload = await verifyJWT(token, env.JWT_SECRET||'');
+          if (!payload) return json({ error: 'Invalid token' }, 401);
+          return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
+        }
+        
         if (pathname === '/api/frontend.js' && method === 'GET') {
           const js = `(() => {
   const api = (p) => (window.location.origin + p);
@@ -57,6 +109,27 @@ export default {
         const offset = first.getDay();
         for (let i=0;i<offset;i++) {
           const ph = document.createElement('div'); ph.className='day-cell placeholder'; grid.appendChild(ph);
+        }
+        if (pathname === '/api/users/login' && method === 'POST') {
+          const body = await readBody();
+          const email = String(body?.email||'').trim().toLowerCase();
+          const pass = String(body?.password||'');
+          const adminEmail = String(env.ADMIN_EMAIL||'').trim().toLowerCase();
+          const adminPass = String(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD||'');
+          if (!adminEmail || !adminPass) return json({ error: 'Admin credentials not configured' }, 500);
+          if (email === adminEmail && pass === adminPass) {
+            const token = await signJWT({ userId: 'ADMIN', email: adminEmail, role: 'ADMIN' }, env.JWT_SECRET||'');
+            return json({ message: 'Login successful', user: { id: 'ADMIN', name: 'Admin', email: adminEmail, role: 'ADMIN' }, token });
+          }
+          return json({ error: 'Invalid credentials' }, 401);
+        }
+        if (pathname === '/api/users/profile' && method === 'GET') {
+          const auth = request.headers.get('authorization') || '';
+          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
+          const token = auth.substring(7);
+          const payload = await verifyJWT(token, env.JWT_SECRET||'');
+          if (!payload) return json({ error: 'Invalid token' }, 401);
+          return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
         }
         for (let day=1; day<=last.getDate(); day++) {
           const cell = document.createElement('button');
@@ -136,18 +209,53 @@ export default {
     const notice = document.getElementById('notice');
     function setNotice(t, ok) { if (!notice) return; notice.textContent = t; notice.classList.remove('hidden'); notice.style.background = ok ? '#d4edda' : '#f8d7da'; }
     if (!form) return;
+    const dl = document.getElementById('detectLocation');
+    if (dl) {
+      dl.addEventListener('click', () => {
+        const el = document.getElementById('location');
+        if (el) el.value = '';
+        if (!navigator.geolocation) { setNotice('Geolocation not available', false); return; }
+        let best = null; let watchId = null;
+        const finish = () => { if (watchId!=null) { try{ navigator.geolocation.clearWatch(watchId); }catch(_){} } if (best && el) { el.value = Number(best.latitude).toFixed(6)+','+Number(best.longitude).toFixed(6); setNotice('Location detected', true); } else { setNotice('Unable to detect location', false); } };
+        const onPos = (pos) => { const c = pos && pos.coords ? pos.coords : null; if (!c) return; if (!best || (typeof c.accuracy==='number' && c.accuracy < best.accuracy)) { best = { latitude: c.latitude, longitude: c.longitude, accuracy: c.accuracy||9999 }; if (best.accuracy<=10) { finish(); } } };
+        const onErr = () => { finish(); };
+        try {
+          watchId = navigator.geolocation.watchPosition(onPos, onErr, { enableHighAccuracy: true, maximumAge: 0 });
+          setTimeout(finish, 20000);
+        } catch(_) { onErr(); }
+      });
+    }
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const name = document.getElementById('name')?.value || '';
       const phone = document.getElementById('phone')?.value || '';
       const pickupTime = document.querySelector('.time-tab.active')?.getAttribute('data-time') || '';
-      const tripType = (document.querySelector('input[name="tripType"]:checked')?.value || '').replace(/\s+/g,'_');
-      const pickupLocation = document.getElementById('location')?.value || '';
+      const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
+      const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
+      const locInput = (document.getElementById('location')?.value || '').trim();
+      const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locInput);
+      const isMapUrl = /^https?:\/\//i.test(locInput) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locInput);
+      if (!isLatLng && !isMapUrl) {
+        setNotice('Paste a Google Maps link or click Detect Location to use coordinates', false);
+        return;
+      }
       const sel = window.selectedVehicle || {};
       const baseRate = Number(sel.rate || 0);
       const discRate = Number(sel.discounted || 0);
       const finalRate = discRate>0 && discRate<baseRate ? discRate : baseRate;
-      const payload = { name, phone, pickupLocation, dropoffLocation: '', pickupDate: window.selectedPickupDate, pickupTime, tripType, vehicleId: sel.id || null, vehicleName: sel.name || null, vehicleRate: baseRate, price: finalRate };
+      const payload = { 
+        name, 
+        phone, 
+        pickupLocation: (tripType==='HOME_TO_AIRPORT' ? locInput : 'Airport'), 
+        dropoffLocation: (tripType==='AIRPORT_TO_HOME' ? locInput : 'Airport'), 
+        pickupDate: window.selectedPickupDate, 
+        pickupTime, 
+        tripType, 
+        vehicleId: sel.id || null, 
+        vehicleName: sel.name || null, 
+        vehicleRate: baseRate, 
+        price: finalRate 
+      };
       try {
         const r = await fetch(api('/api/bookings'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         if (!r.ok) throw new Error('HTTP '+r.status);
@@ -161,20 +269,60 @@ export default {
   }
   document.addEventListener('DOMContentLoaded', function() { initCalendar(); initVehicles(); initBookingForm(); });
 })();`;
-          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8' } });
+          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
         if (pathname === '/api/admin.js' && method === 'GET') {
           const js = `(() => {
   class AdminPanel {
-    constructor(){ this.bookings=[]; this.currentPage='dashboard'; }
+    constructor(){ this.bookings=[]; this.currentPage='dashboard'; this.API_BASE_URL='/api'; this.currentUser=null; }
     navigateToPage(p){ this.currentPage=p; try{ document.getElementById('pageTitle').textContent = 'Admin ' + p.charAt(0).toUpperCase()+p.slice(1); document.getElementById('breadcrumbText').textContent = 'Home / ' + (p.charAt(0).toUpperCase()+p.slice(1)); }catch(_){} }
-    updateDashboard(){}
-    renderBookingsTable(){}
-    async loadDashboardData(){}
+    showAdminContent(){ try{ document.getElementById('loginSection').style.display='none'; }catch(_){} }
+    showLogin(){ try{ document.getElementById('loginSection').style.display='block'; }catch(_){} }
+    authFetch(url, options={}){ const t=localStorage.getItem('adminToken'); const h=Object.assign({}, options.headers||{}, t?{ Authorization:'Bearer '+t }:{}); return fetch(url, Object.assign({}, options, { headers:h })); }
+    checkAuth(){ const t=localStorage.getItem('adminToken'); if(!t){ this.showLogin(); return; } fetch(this.API_BASE_URL+'/users/profile', { headers:{ Authorization:'Bearer '+t } }).then(r=>r.ok?r.json():Promise.reject()).then(d=>{ if(d&&d.user&&String(d.user.role||'').toUpperCase()==='ADMIN'){ this.currentUser=d.user; this.showAdminContent(); } else { this.showLogin(); } }).catch(()=>{ this.showLogin(); }); }
+    async handleLogin(){
+      if (window.__loginGate === true) return;
+      window.__loginGate = true;
+      const email=document.getElementById('email')?.value||'';
+      const password=document.getElementById('password')?.value||'';
+      try{
+        const r=await fetch(this.API_BASE_URL+'/users/login', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ email, password }) });
+        const d=await r.json();
+        if(r.ok && String(d?.user?.role||'').toUpperCase()==='ADMIN'){
+          localStorage.setItem('adminToken', d.token);
+          this.currentUser=d.user;
+          this.showAdminContent();
+          this.navigateToPage('dashboard');
+        } else {
+          console.warn('Login failed: invalid credentials or insufficient permissions');
+        }
+      }catch(_){
+        console.warn('Login failed: network or server error');
+      } finally {
+        window.__loginGate = false;
+      }
+    }
+    bindEvents(){
+      const lb0=document.getElementById('loginButton');
+      if(lb0){
+        const lb=lb0.cloneNode(true);
+        lb.id='loginButton';
+        lb.handleLogin = function(){ if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } };
+        try{ lb.removeAttribute('onclick'); }catch(_){}
+        if(lb0.parentNode){ lb0.parentNode.replaceChild(lb, lb0); }
+        lb.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); lb.handleLogin(); });
+      }
+      const lo=document.getElementById('logoutBtn');
+      if(lo){ lo.addEventListener('click', (e)=>{ e.preventDefault(); localStorage.removeItem('adminToken'); this.showLogin(); }); }
+    }
+    async loadDashboardData(){ try{ const r=await this.authFetch(this.API_BASE_URL+'/admin/dashboard'); if(r.ok){ const data=await r.json(); /* optionally update UI */ } }catch(_){ }
   }
   window.AdminPanel = AdminPanel;
+  window.handleLogin = function(){ if(window.adminPanel && typeof window.adminPanel.handleLogin==='function'){ window.adminPanel.handleLogin(); } };
+  document.addEventListener('DOMContentLoaded', function(){ if(!window.adminPanel || !(window.adminPanel instanceof AdminPanel)){ window.adminPanel = new AdminPanel(); } try{ window.adminPanel.bindEvents(); }catch(_){} try{ window.adminPanel.checkAuth(); }catch(_){} });
+  document.addEventListener('click', function(e){ if(e && e.target && e.target.id==='loginButton'){ e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); window.handleLogin(); } }, true);
 })();`;
-          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8' } });
+          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
         if (useProxy) {
           const base = proxyBase.replace(/\/$/, '');
@@ -210,6 +358,62 @@ export default {
           if (body && body.currentBookings !== undefined) update.current_bookings = body.currentBookings;
           const r = await supabase('/availability?date=eq.' + encodeURIComponent(toISO(iso)), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
           return r;
+        }
+        if (pathname === '/api/availability/bulk-update' && method === 'POST') {
+          const body = await readBody();
+          const s = body && body.startDate ? body.startDate : '';
+          const e = body && body.endDate ? body.endDate : '';
+          const sDate = new Date(s || 0);
+          const eDate = new Date(e || 0);
+          if (!s || !e || isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || eDate.getTime() < sDate.getTime()) {
+            return json({ error: 'Invalid date range' }, 400);
+          }
+          sDate.setHours(0,0,0,0);
+          eDate.setHours(0,0,0,0);
+          const morningAvailable = body && body.morningAvailable;
+          const eveningAvailable = body && body.eveningAvailable;
+          const maxBookings = body && body.maxBookings;
+          let updatedCount = 0;
+          let insertedCount = 0;
+          const dates = [];
+          for (let d = new Date(sDate); d.getTime() <= eDate.getTime(); d.setDate(d.getDate() + 1)) {
+            const x = new Date(d);
+            x.setHours(0,0,0,0);
+            dates.push(x);
+          }
+          for (const date of dates) {
+            const iso = date.toISOString();
+            const next = new Date(date);
+            next.setDate(next.getDate() + 1);
+            const params = new URLSearchParams({ select: 'id,date' });
+            params.append('date', 'gte.' + iso);
+            params.append('date', 'lt.' + next.toISOString());
+            const existingResp = await supabase('/availability?' + params.toString(), { method: 'GET' }, true);
+            const rows = existingResp.status === 200 ? await existingResp.json().catch(() => []) : [];
+            if (Array.isArray(rows) && rows.length) {
+              const update = {};
+              if (morningAvailable !== undefined) update.morning_available = morningAvailable;
+              if (eveningAvailable !== undefined) update.evening_available = eveningAvailable;
+              if (maxBookings !== undefined) update.max_bookings = maxBookings;
+              if (Object.keys(update).length === 0) {
+                continue;
+              }
+              const ur = await supabase('/availability?date=eq.' + encodeURIComponent(iso), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
+              if (ur.status === 200) updatedCount++;
+            } else {
+              const payload = {
+                id: (crypto && typeof crypto.randomUUID === 'function') ? crypto.randomUUID() : String(Date.now()),
+                date: iso,
+                morning_available: morningAvailable !== undefined ? morningAvailable : true,
+                evening_available: eveningAvailable !== undefined ? eveningAvailable : true,
+                max_bookings: maxBookings != null ? Number(maxBookings) : 10,
+                current_bookings: 0
+              };
+              const ir = await supabase('/availability', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+              if (ir.status === 201 || ir.status === 200) insertedCount++;
+            }
+          }
+          return json({ updatedDates: updatedCount, insertedDates: insertedCount });
         }
         if (pathname === '/api/vehicles' && method === 'GET') {
           const r = await supabase('/vehicles?select=*', { method: 'GET' }, true);

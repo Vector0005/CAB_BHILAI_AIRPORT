@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 import getSupabaseClient from '../services/supabaseClient.js'
+import { PrismaClient } from '@prisma/client'
+const prisma = new PrismaClient()
 const supabase = getSupabaseClient(true)
 
 // Verify JWT token and attach user to request
@@ -50,7 +52,7 @@ export const authenticateToken = async (req, res, next) => {
 
 // Check if user is admin
 export const requireAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'ADMIN') {
+  if (!req.user || String(req.user.role || '').toUpperCase() !== 'ADMIN') {
     return res.status(403).json({ error: 'Admin access required' });
   }
   next();
