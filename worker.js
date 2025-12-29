@@ -624,6 +624,16 @@ export default {
     .radio-button.selected{background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);border-color:#0ea5e9;color:#fff}
     .radio-label{font-weight:500;color:#374151}
     .location-help{font-size:13px;color:#64748b;margin-top:6px;font-style:italic}
+    .location-detect-btn{background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;border:none;padding:12px 16px;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;transition:all .3s ease;display:inline-flex;align-items:center;gap:8px}
+    .location-detect-btn:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(16,185,129,.4)}
+    .vehicle-select{position:relative}
+    .dropdown-button{width:100%;height:44px;padding:10px 40px 10px 12px;border:2px solid #e5e7eb;border-radius:10px;background:#fff;color:#1f2937;font-weight:700;box-shadow:0 2px 10px rgba(0,0,0,.04);text-align:left;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:14px}
+    .dropdown-menu{position:absolute;left:0;right:0;top:calc(100% + 6px);background:#fff;border:2px solid #e5e7eb;border-radius:12px;box-shadow:0 10px 24px rgba(0,0,0,.08);max-height:240px;overflow-y:auto;z-index:50}
+    .dropdown-option{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;font-weight:600;color:#374151}
+    .dropdown-option:hover{background:#f3f4f6}
+    .opt-rate{color:#111827;font-weight:700}
+    .hidden{display:none}
+    .time-tab.disabled{opacity:.6;cursor:not-allowed;background:#f3f4f6;color:#9ca3af;border-color:#e5e7eb}
     .book-ride-btn{background:linear-gradient(135deg,#0ea5e9 0%,#1e40af 100%);color:#fff;border:none;padding:16px 32px;border-radius:12px;font-size:18px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
     .footer-actions{display:flex;gap:12px;justify-content:center}
     @media(max-width:1024px){.booking-section{grid-template-columns:1fr}}
@@ -777,7 +787,55 @@ export default {
                 }catch(_){ }
               });
             })();
-          </script>
+  </script>
+  <script>
+    (function(){
+      var grid=document.getElementById('calendarGrid');
+      var monthLabel=document.getElementById('monthYear');
+      function pad(n){ n=String(n); return n.length<2?('0'+n):n; }
+      function fmt(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+      function clearGrid(){ if(!grid) return; try{ while(grid.firstChild){ grid.removeChild(grid.firstChild);} }catch(_){}
+        var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; for(var i=0;i<7;i++){ var w=document.createElement('div'); w.className='weekday'; w.textContent=days[i]; grid.appendChild(w); }
+      }
+      function buildCells(year, month, map){ if(!grid) return; var firstDow=(new Date(year, month, 1)).getDay(); var daysInMonth=(new Date(year, month+1, 0)).getDate();
+        for(var p=0;p<firstDow;p++){ var ph=document.createElement('div'); ph.className='calendar-day other-month unavailable'; ph.setAttribute('aria-hidden','true'); grid.appendChild(ph); }
+        var today=new Date(); today.setHours(0,0,0,0);
+        for(var d=1; d<=daysInMonth; d++){
+          var dateObj=new Date(year, month, d); dateObj.setHours(0,0,0,0);
+          var dayStr=fmt(dateObj);
+          var av=(map && map[dayStr])?map[dayStr]:{ m:true, e:true };
+          var st=(av.m && av.e)?'available':((av.m || av.e)?'partial':'booked');
+          var cell=document.createElement('div'); cell.className='calendar-day'; cell.setAttribute('data-date', dayStr);
+          if(st==='available'){ cell.className+=' available'; } else if(st==='partial'){ cell.className+=' partial'; } else { cell.className+=' booked'; }
+          var isPast=dateObj.getTime()<today.getTime(); if(isPast){ cell.className+=' past-date'; }
+          var num=document.createElement('div'); num.className='calendar-day-number'; num.textContent=String(d);
+          cell.appendChild(num);
+          if(!isPast && st!=='available'){ var lab=document.createElement('div'); lab.className='calendar-day-status'; lab.textContent=(st==='partial' ? (av.m?'Morning available':'Evening available') : 'Fully booked'); cell.appendChild(lab); }
+          (function(cellEl, ds, isPast){ cellEl.addEventListener('click', function(){ if(isPast) return; window.selectedPickupDate=ds; var selDisplay=document.getElementById('selectedDateDisplay'); if(selDisplay){ selDisplay.classList.add('has-date'); selDisplay.textContent=(new Date(ds)).toDateString(); }
+            var prevSel=grid.querySelector('.calendar-day.selected'); if(prevSel){ prevSel.className=prevSel.className.replace(' selected',''); }
+            cellEl.className+=' selected';
+            try{ if(window.updateTimeTabsForDate){ window.updateTimeTabsForDate(ds); } }catch(_){}
+          }); })(cell, dayStr, isPast);
+          grid.appendChild(cell);
+        }
+      }
+      function statusMap(rows){ var map={}; if(rows && typeof rows.length==='number'){ for(var i=0;i<rows.length;i++){ var r=rows[i]||{}; var iso=r.date?String(r.date):null; if(!iso) continue; var dt=new Date(iso); dt.setHours(0,0,0,0); var day=fmt(dt); var mA=(r.morning_available!==undefined)?!!r.morning_available:!!r.morningAvailable; var eA=(r.evening_available!==undefined)?!!r.evening_available:!!r.eveningAvailable; map[day]={ m:mA, e:eA }; } } return map; }
+      function render(){ if(!grid || !monthLabel) return; clearGrid(); var today=new Date(); var year=today.getFullYear(); var month=today.getMonth();
+        if(monthLabel){ monthLabel.textContent=(new Date(year,month,1)).toLocaleString('en-US',{ month:'long', year:'numeric'}); }
+        if(typeof window.fetch==='function'){
+          window.fetch('/api/availability?startDate='+encodeURIComponent(fmt(new Date(year,month,1)))+'&endDate='+encodeURIComponent(fmt(new Date(year,month+1,0))))
+            .then(function(r){ return r.json(); })
+            .then(function(rows){ var map=statusMap(rows); buildCells(year, month, map); })
+            .catch(function(){ buildCells(year, month, null); });
+        } else { buildCells(year, month, null); }
+      }
+      window.refreshCalendar = render; render();
+      window.updateDayStatus = function(ds){ if(typeof window.fetch!=='function') return; window.fetch('/api/availability/'+encodeURIComponent(ds)).then(function(r){ return r.json(); }).then(function(row){ var mA=(row.morning_available!==undefined)?!!row.morning_available:!!row.morningAvailable; var eA=(row.evening_available!==undefined)?!!row.evening_available:!!row.eveningAvailable; var st=(mA && eA)?'available':((mA || eA)?'partial':'booked'); var cell=grid.querySelector('[data-date="'+ds+'"]'); if(!cell) return; cell.className='calendar-day '+st; var lab=cell.querySelector('.calendar-day-status'); if(!lab){ lab=document.createElement('div'); lab.className='calendar-day-status'; cell.appendChild(lab); } lab.textContent=(st==='partial' ? (mA?'Morning available':'Evening available') : (st==='booked'?'Fully booked':'')); }).catch(function(){}); };
+      window.updateTimeTabsForDate = function(ds){ if(typeof window.fetch!=='function') return; var morningTab=document.querySelector('[data-time="morning"]'); var eveningTab=document.querySelector('[data-time="evening"]'); window.fetch('/api/availability/'+encodeURIComponent(ds)).then(function(r){ return r.json(); }).then(function(row){ var mA=(row.morning_available!==undefined)?!!row.morning_available:!!row.morningAvailable; var eA=(row.evening_available!==undefined)?!!row.evening_available:!!row.eveningAvailable; if(morningTab){ if(!mA){ morningTab.classList.add('disabled'); morningTab.style.pointerEvents='none'; } else { morningTab.classList.remove('disabled'); morningTab.style.pointerEvents='auto'; } } if(eveningTab){ if(!eA){ eveningTab.classList.add('disabled'); eveningTab.style.pointerEvents='none'; } else { eveningTab.classList.remove('disabled'); eveningTab.style.pointerEvents='auto'; } } var active=document.querySelector('.time-tab.active'); if(active && active.className.indexOf('disabled')!==-1){ try{ active.classList.remove('active'); }catch(_){ } if(mA && morningTab){ morningTab.classList.add('active'); } else if(eA && eveningTab){ eveningTab.classList.add('active'); } } }).catch(function(){}); };
+      // Vehicle menu population fallback
+      (function(){ var dropdown=document.getElementById('vehicleDropdown'); var menu=document.getElementById('vehicleMenu'); var rateDisplay=document.getElementById('vehicleRateDisplay'); function renderRate(v){ if(!rateDisplay) return; var r=(v && v.discounted_rate!=null)?Number(v.discounted_rate):Number(v && v.rate || 0); var orig=(v && v.discounted_rate!=null)?Number(v.rate):null; if(orig!=null && isFinite(orig) && orig>r){ rateDisplay.innerHTML='<span class="rate-original">₹'+orig+'</span><span class="rate-discount">₹'+r+'</span>'; } else { rateDisplay.textContent='₹'+r; } } function setSelectedVehicle(v){ if(dropdown){ dropdown.textContent=(v && v.name)?String(v.name):'Select vehicle'; } renderRate(v); if(menu){ menu.classList.add('hidden'); if(dropdown){ dropdown.setAttribute('aria-expanded','false'); } } } function populateVehicles(list){ if(!menu) return; try{ while(menu.firstChild){ menu.removeChild(menu.firstChild);} }catch(_){} for(var i=0;i<list.length;i++){ var v=list[i]||{}; if(v.active===false) continue; var row=document.createElement('div'); row.className='dropdown-option'; var name=document.createElement('span'); name.textContent=String(v.name||''); var rate=document.createElement('span'); rate.className='opt-rate'; var shownRate=(v.discounted_rate!=null && isFinite(v.discounted_rate))?Number(v.discounted_rate):Number(v.rate||0); rate.textContent='₹'+String(shownRate); row.appendChild(name); row.appendChild(rate); (function(vh){ row.addEventListener('click', function(){ setSelectedVehicle(vh); }); })(v); menu.appendChild(row);} } if(typeof window.fetch==='function'){ window.fetch('/api/vehicles').then(function(r){ return r.json(); }).then(function(j){ populateVehicles((j && j.vehicles)||[]); }).catch(function(){ populateVehicles([{ id:'sedan', name:'Sedan', rate:700 }, { id:'suv', name:'SUV', rate:900 }, { id:'van', name:'Van', rate:1100 }]); }); } else { populateVehicles([{ id:'sedan', name:'Sedan', rate:700 }, { id:'suv', name:'SUV', rate:900 }, { id:'van', name:'Van', rate:1100 }]); } })();
+    })();
+  </script>
   <script>try{ setTimeout(function(){ if(!window.L){ var n=document.getElementById('notice'); if(n){ n.textContent='Map library failed to load. Detect Location still works.'; n.classList.remove('hidden'); n.style.background='#fff3cd'; } } }, 300); }catch(_){ }</script>
   <script>let adminClickCount = 0; let adminClickTimer; document.getElementById('adminAccess').addEventListener('click', function(){ adminClickCount++; clearTimeout(adminClickTimer); if (adminClickCount >= 3) { window.open('/admin.html', '_blank'); adminClickCount = 0; } adminClickTimer = setTimeout(() => { adminClickCount = 0; }, 1000); }); document.addEventListener('keydown', function(e){ if (e.ctrlKey && e.shiftKey && e.key === 'A') { e.preventDefault(); window.open('/admin.html', '_blank'); } }); let konamiCode = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a']; let konamiIndex = 0; document.addEventListener('keydown', function(e){ if (e.key === konamiCode[konamiIndex]) { konamiIndex++; if (konamiIndex === konamiCode.length) { window.open('/admin.html', '_blank'); konamiIndex = 0; } } else { konamiIndex = 0; } });</script>
 </body>
