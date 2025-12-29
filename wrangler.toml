@@ -1,0 +1,7 @@
+name = "airport-booking-worker"
+main = "worker.js"
+compatibility_date = "2025-11-30"
+workers_dev = true
+
+[vars]
+# Configure via Cloudflare dashboard or wrangler secrets
