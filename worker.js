@@ -621,7 +621,9 @@ export default {
     .time-tab.active{background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);color:#fff;border-color:#0ea5e9}
     .trip-type-buttons{display:flex;gap:15px}
     .radio-button{display:flex;align-items:center;gap:8px;padding:12px 16px;border-radius:12px;background:#fff;border:2px solid #e5e7eb;flex:1}
+    .radio-button.selected{background:linear-gradient(135deg,#0ea5e9 0%,#0284c7 100%);border-color:#0ea5e9;color:#fff}
     .radio-label{font-weight:500;color:#374151}
+    .location-help{font-size:13px;color:#64748b;margin-top:6px;font-style:italic}
     .book-ride-btn{background:linear-gradient(135deg,#0ea5e9 0%,#1e40af 100%);color:#fff;border:none;padding:16px 32px;border-radius:12px;font-size:18px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-top:10px}
     .footer-actions{display:flex;gap:12px;justify-content:center}
     @media(max-width:1024px){.booking-section{grid-template-columns:1fr}}
@@ -721,7 +723,61 @@ export default {
   <div id="mapOverlay" class="modal-overlay hidden"><div class="modal"><div class="modal-header"><span>Calibrate Location</span><button id="closeMap" class="modal-btn modal-btn-secondary">Close</button></div><div class="modal-body"><div id="mapCanvas"></div></div><div class="modal-footer"><button id="useCoords" class="modal-btn">Use These Coordinates</button></div></div></div>
   <div id="confirmationOverlay" class="modal-overlay hidden"><div class="modal"><div class="modal-header"><span>Booking Confirmed</span><button id="closeConfirm" class="modal-btn modal-btn-secondary">Close</button></div><div class="modal-body"><div style="padding:12px 16px" id="confirmationBody"><div id="confirmNumber"></div><div id="confirmDate"></div><div id="confirmTime"></div><div id="confirmTrip"></div><div id="confirmPickup"></div><div id="confirmDropoff"></div><div id="confirmPrice"></div></div></div><div class="modal-footer"><button id="okConfirm" class="modal-btn">OK</button></div></div></div>
   <div id="adminAccess" class="admin-access-hidden" style="position: fixed; top: 0; left: 0; width: 10px; height: 10px; cursor: pointer; z-index: 9999;" title="Admin Access (Triple-click or Ctrl+Shift+A)"></div>
-  <script src="/script-backend.js?v=es5" defer></script>
+          <script src="/script-backend.js?v=es5" defer></script>
+          <script>
+            (function(){
+              var ready=function(fn){ if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded', fn); } else { fn(); } };
+              ready(function(){
+                try{
+                  var radios=document.querySelectorAll('.radio-button input[type="radio"]');
+                  for(var i=0;i<radios.length;i++){
+                    radios[i].addEventListener('change', function(ev){
+                      try{ var labels=document.querySelectorAll('.radio-button'); for(var j=0;j<labels.length;j++){ labels[j].classList.remove('selected'); } }catch(_){ }
+                      var el=ev.target; var wrap=el && el.closest ? el.closest('.radio-button') : null; if(wrap){ wrap.classList.add('selected'); }
+                    });
+                  }
+                  var initSel=document.querySelector('.radio-button input[type="radio"]:checked'); if(initSel && initSel.closest){ var w=initSel.closest('.radio-button'); if(w){ w.classList.add('selected'); } }
+                }catch(_){ }
+                try{
+                  var grid=document.getElementById('calendarGrid'); var header=document.getElementById('monthYear');
+                  var existing=grid ? grid.querySelectorAll('.calendar-day').length : 0;
+                  if(grid && existing===0){
+                    var today=new Date(); var year=today.getFullYear(); var month=today.getMonth();
+                    function pad(n){ n=String(n); return n.length<2?('0'+n):n; }
+                    var firstDow=(new Date(year,month,1)).getDay(); var daysInMonth=(new Date(year,month+1,0)).getDate();
+                    for(var p=0;p<firstDow;p++){ var ph=document.createElement('div'); ph.className='calendar-day other-month unavailable'; ph.setAttribute('aria-hidden','true'); grid.appendChild(ph); }
+                    for(var d=1; d<=daysInMonth; d++){
+                      (function(day){
+                        var cell=document.createElement('div'); cell.className='calendar-day available';
+                        var num=document.createElement('div'); num.className='calendar-day-number'; num.textContent=String(day);
+                        cell.appendChild(num);
+                        cell.addEventListener('click', function(){
+                          var ds=year+'-'+pad(month+1)+'-'+pad(day);
+                          window.selectedPickupDate=ds;
+                          var disp=document.getElementById('selectedDateDisplay'); if(disp){ disp.classList.add('has-date'); try{ disp.innerHTML=''; }catch(_){ } disp.textContent=(new Date(ds)).toDateString(); }
+                          try{ var prevSel=grid.querySelector('.calendar-day.selected'); if(prevSel){ prevSel.className=prevSel.className.replace(' selected',''); } }catch(_){ }
+                          cell.className+=' selected';
+                        });
+                        grid.appendChild(cell);
+                      })(d);
+                    }
+                    if(header){ header.textContent=(new Date(year,month,1)).toLocaleString('en-US',{ month:'long', year:'numeric'}); }
+                  }
+                }catch(_){ }
+                try{
+                  var dropdown=document.getElementById('vehicleDropdown'); var menu=document.getElementById('vehicleMenu');
+                  if(dropdown && menu && !dropdown.__init){
+                    dropdown.__init=true;
+                    dropdown.addEventListener('click', function(){
+                      if(menu.className.indexOf('hidden')!==-1){ menu.classList.remove('hidden'); dropdown.setAttribute('aria-expanded','true'); }
+                      else { menu.classList.add('hidden'); dropdown.setAttribute('aria-expanded','false'); }
+                    });
+                    document.addEventListener('click', function(e){ var t=e.target; if(!menu || !dropdown) return; if(menu.contains(t) || dropdown.contains(t)) return; menu.classList.add('hidden'); dropdown.setAttribute('aria-expanded','false'); });
+                  }
+                }catch(_){ }
+              });
+            })();
+          </script>
   <script>try{ setTimeout(function(){ if(!window.L){ var n=document.getElementById('notice'); if(n){ n.textContent='Map library failed to load. Detect Location still works.'; n.classList.remove('hidden'); n.style.background='#fff3cd'; } } }, 300); }catch(_){ }</script>
   <script>let adminClickCount = 0; let adminClickTimer; document.getElementById('adminAccess').addEventListener('click', function(){ adminClickCount++; clearTimeout(adminClickTimer); if (adminClickCount >= 3) { window.open('/admin.html', '_blank'); adminClickCount = 0; } adminClickTimer = setTimeout(() => { adminClickCount = 0; }, 1000); }); document.addEventListener('keydown', function(e){ if (e.ctrlKey && e.shiftKey && e.key === 'A') { e.preventDefault(); window.open('/admin.html', '_blank'); } }); let konamiCode = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a']; let konamiIndex = 0; document.addEventListener('keydown', function(e){ if (e.key === konamiCode[konamiIndex]) { konamiIndex++; if (konamiIndex === konamiCode.length) { window.open('/admin.html', '_blank'); konamiIndex = 0; } } else { konamiIndex = 0; } });</script>
 </body>
