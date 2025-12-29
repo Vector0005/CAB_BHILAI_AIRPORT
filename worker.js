@@ -727,43 +727,7 @@ export default {
                   }
                   var initSel=document.querySelector('.radio-button input[type="radio"]:checked'); if(initSel && initSel.closest){ var w=initSel.closest('.radio-button'); if(w){ w.classList.add('selected'); } }
                 }catch(_){ }
-                try{
-                  var grid=document.getElementById('calendarGrid'); var header=document.getElementById('monthYear');
-                  var existing=grid ? grid.querySelectorAll('.calendar-day').length : 0;
-                  if(grid && existing===0){
-                    var today=new Date(); var year=today.getFullYear(); var month=today.getMonth();
-                    function pad(n){ n=String(n); return n.length<2?('0'+n):n; }
-                    var firstDow=(new Date(year,month,1)).getDay(); var daysInMonth=(new Date(year,month+1,0)).getDate();
-                    for(var p=0;p<firstDow;p++){ var ph=document.createElement('div'); ph.className='calendar-day other-month unavailable'; ph.setAttribute('aria-hidden','true'); grid.appendChild(ph); }
-                    for(var d=1; d<=daysInMonth; d++){
-                      (function(day){
-                        var cell=document.createElement('div'); cell.className='calendar-day available';
-                        var num=document.createElement('div'); num.className='calendar-day-number'; num.textContent=String(day);
-                        cell.appendChild(num);
-                        cell.addEventListener('click', function(){
-                          var ds=year+'-'+pad(month+1)+'-'+pad(day);
-                          window.selectedPickupDate=ds;
-                          var disp=document.getElementById('selectedDateDisplay'); if(disp){ disp.classList.add('has-date'); try{ disp.innerHTML=''; }catch(_){ } disp.textContent=(new Date(ds)).toDateString(); }
-                          try{ var prevSel=grid.querySelector('.calendar-day.selected'); if(prevSel){ prevSel.className=prevSel.className.replace(' selected',''); } }catch(_){ }
-                          cell.className+=' selected';
-                        });
-                        grid.appendChild(cell);
-                      })(d);
-                    }
-                    if(header){ header.textContent=(new Date(year,month,1)).toLocaleString('en-US',{ month:'long', year:'numeric'}); }
-                  }
-                }catch(_){ }
-                try{
-                  var dropdown=document.getElementById('vehicleDropdown'); var menu=document.getElementById('vehicleMenu');
-                  if(dropdown && menu && !dropdown.__init){
-                    dropdown.__init=true;
-                    dropdown.addEventListener('click', function(){
-                      if(menu.className.indexOf('hidden')!==-1){ menu.classList.remove('hidden'); dropdown.setAttribute('aria-expanded','true'); }
-                      else { menu.classList.add('hidden'); dropdown.setAttribute('aria-expanded','false'); }
-                    });
-                    document.addEventListener('click', function(e){ var t=e.target; if(!menu || !dropdown) return; if(menu.contains(t) || dropdown.contains(t)) return; menu.classList.add('hidden'); dropdown.setAttribute('aria-expanded','false'); });
-                  }
-                }catch(_){ }
+                // Removed duplicate fallback calendar/menu; unified to script-backend.js logic below
               });
             })();
   </script>
