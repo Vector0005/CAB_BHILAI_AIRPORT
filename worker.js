@@ -324,7 +324,7 @@ export default {
             if (sp.get('startDate')) params.append('date', `gte.${toISO(sp.get('startDate'))}`);
             if (sp.get('endDate')) params.append('date', `lte.${toISO(sp.get('endDate'))}`);
           }
-          const r = await supabase('/availability?' + params.toString(), { method: 'GET' }, false);
+          const r = await supabase('/availability?' + params.toString(), { method: 'GET' }, true);
           return r;
         }
         if (pathname.startsWith('/api/availability/') && method === 'PATCH') {
