@@ -34,12 +34,14 @@
     if(closeConfirm){ closeConfirm.addEventListener('click', hideConfirmation); }
     if(okConfirm){ okConfirm.addEventListener('click', hideConfirmation); }
 
+    (function(){ var tabs=document.querySelectorAll('.time-tab'); if(!tabs || !tabs.length) return; for(var i=0;i<tabs.length;i++){ (function(tb){ tb.addEventListener('click', function(){ try{ for(var j=0;j<tabs.length;j++){ tabs[j].classList.remove('active'); } }catch(_){ } tb.classList.add('active'); }); })(tabs[i]); } })();
+
     if(form){ form.addEventListener('submit', function(e){ e.preventDefault();
       var nameEl=document.getElementById('name'); var name=(nameEl && nameEl.value)?nameEl.value:'';
       var phoneEl=document.getElementById('phone'); var phone=(phoneEl && phoneEl.value)?phoneEl.value:'';
       var tripNode=document.querySelector('input[name="tripType"]:checked'); var tripRaw=(tripNode && tripNode.value)?tripNode.value:'';
       var tripType=String(tripRaw).toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
-      var timeNode=document.querySelector('.time-tab.active'); var pickupTime=(timeNode && timeNode.getAttribute('data-time'))?timeNode.getAttribute('data-time'):'';
+      var timeNode=document.querySelector('.time-tab.active'); var pickupTime=(timeNode && timeNode.getAttribute('data-time'))?timeNode.getAttribute('data-time'):''; if(timeNode && timeNode.className.indexOf('disabled')!==-1){ setNotice('Selected slot not available', false); return; }
       var locEl=document.getElementById('location'); var loc=((locEl && locEl.value)?locEl.value:'').trim();
       if(loc && loc.length<5){ setNotice('Location too short (min 5) or leave empty', false); return; }
       var today=new Date(); today.setHours(0,0,0,0);
@@ -52,7 +54,7 @@
         if(typeof window.fetch!=='function'){ setNotice('Booking failed: network unsupported', false); return; }
         window.fetch('/api/bookings', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })
           .then(function(r){ if(!r.ok){ return r.json().then(function(j){ throw j; }); } return r.json(); })
-          .then(function(j){ setNotice('Booking submitted successfully', true); try{ form.reset(); }catch(_){ } try{ if(window.refreshCalendar){ window.refreshCalendar(); } }catch(_){ } try{ if(j && j.booking){ showConfirmation(j.booking); } }catch(_){ } })
+          .then(function(j){ setNotice('Booking submitted successfully', true); try{ form.reset(); }catch(_){ } try{ if(window.refreshCalendar){ window.refreshCalendar(); } }catch(_){ } try{ var ds=dateSel; if(window.updateDayStatus){ window.updateDayStatus(ds); } }catch(_){ } try{ if(j && j.booking){ showConfirmation(j.booking); } }catch(_){ } })
           .catch(function(err){ var msg='Failed to submit booking'; if(err && err.errors && Array.isArray(err.errors)){ msg=err.errors.map(function(e){ return e.msg; }).join('; '); } else if(err && err.error){ msg=String(err.error); } setNotice(msg, false); });
       }catch(_){ setNotice('Failed to submit booking', false); }
     }); }
@@ -71,7 +73,7 @@
     function populateVehicles(list){ if(!vehMenu) return; try{ while(vehMenu.firstChild){ vehMenu.removeChild(vehMenu.firstChild);} }catch(_){ } for(var i=0;i<list.length;i++){ var v=list[i]||{}; if(v.active===false) continue; var row=document.createElement('div'); row.className='dropdown-option'; row.setAttribute('role','option'); var name=document.createElement('span'); name.textContent=String(v.name||''); var rate=document.createElement('span'); rate.className='opt-rate'; var shownRate=(v.discounted_rate!=null && isFinite(v.discounted_rate))?Number(v.discounted_rate):Number(v.rate||0); rate.textContent='₹'+String(shownRate); row.appendChild(name); row.appendChild(rate); (function(vh){ row.addEventListener('click', function(){ setSelectedVehicle(vh); }); })(v); vehMenu.appendChild(row); } }
     if(vehBtn){ vehBtn.addEventListener('click', function(){ if(!vehMenu) return; if(vehMenu.className.indexOf('hidden')!==-1){ openVehMenu(); } else { closeVehMenu(); } }); }
     document.addEventListener('click', function(e){ var t=e.target; if(!vehMenu || !vehBtn) return; if(vehMenu.contains(t) || vehBtn.contains(t)) return; closeVehMenu(); });
-    if(typeof window.fetch==='function'){ try{ window.fetch('/api/vehicles').then(function(r){ return r.json(); }).then(function(j){ var list=(j && j.vehicles)?j.vehicles:[]; populateVehicles(list||[]); }).catch(function(){ }); }catch(_){ } }
+    if(typeof window.fetch==='function'){ try{ window.fetch('/api/vehicles').then(function(r){ return r.json(); }).then(function(j){ var list=(j && j.vehicles)?j.vehicles:[]; populateVehicles(list||[]); }).catch(function(){ populateVehicles([{ id:'sedan', name:'Sedan', rate:700 }, { id:'suv', name:'SUV', rate:900 }, { id:'van', name:'Van', rate:1100 }]); }); }catch(_){ populateVehicles([{ id:'sedan', name:'Sedan', rate:700 }, { id:'suv', name:'SUV', rate:900 }, { id:'van', name:'Van', rate:1100 }]); } }
 
     (function(){
       var grid=document.getElementById('calendarGrid');
@@ -86,7 +88,7 @@
       function clearGrid(){ try{ while(grid.firstChild){ grid.removeChild(grid.firstChild);} }catch(_){}
         var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']; for(var i=0;i<7;i++){ var w=document.createElement('div'); w.className='weekday'; w.textContent=days[i]; grid.appendChild(w); }
       }
-      function statusMap(rows){ var map={}; if(rows && typeof rows.length==='number'){ for(var i=0;i<rows.length;i++){ var r=rows[i]||{}; var iso=r.date?String(r.date):null; if(!iso){ continue; } var day=iso.split('T')[0]; var mA=(r.morning_available!==undefined)?!!r.morning_available:!!r.morningAvailable; var eA=(r.evening_available!==undefined)?!!r.evening_available:!!r.eveningAvailable; map[day]={ m:mA, e:eA }; } } return map; }
+      function statusMap(rows){ var map={}; if(rows && typeof rows.length==='number'){ for(var i=0;i<rows.length;i++){ var r=rows[i]||{}; var iso=r.date?String(r.date):null; if(!iso){ continue; } var dt=new Date(iso); dt.setHours(0,0,0,0); var day=fmt(dt); var mA=(r.morning_available!==undefined)?!!r.morning_available:!!r.morningAvailable; var eA=(r.evening_available!==undefined)?!!r.evening_available:!!r.eveningAvailable; map[day]={ m:mA, e:eA }; } } return map; }
       function render(){ clearGrid(); var year=current.getFullYear(); var month=current.getMonth(); var firstDow=(new Date(year, month, 1)).getDay(); var daysInMonth=(new Date(year, month+1, 0)).getDate();
         var startDate=new Date(year, month, 1); var endDate=new Date(year, month, daysInMonth);
         monthLabel.textContent = startDate.toLocaleString('en-US', { month:'long'})+' '+year;
@@ -97,6 +99,7 @@
             var av=(map && map[dayStr])?map[dayStr]:{ m:true, e:true };
             var st=(av.m && av.e)?'available':((av.m || av.e)?'partial':'booked');
             var cell=document.createElement('div'); cell.className='calendar-day';
+            cell.setAttribute('data-date', dayStr);
             if(st==='available'){ cell.className+=' available'; } else if(st==='partial'){ cell.className+=' partial'; } else { cell.className+=' booked'; }
             var isPast=dateObj.getTime()<today.getTime(); if(isPast){ cell.className+=' past-date'; }
             var num=document.createElement('div'); num.className='calendar-day-number'; num.textContent=String(d);
@@ -105,6 +108,7 @@
             (function(cellEl, ds, isPast){ cellEl.addEventListener('click', function(){ if(isPast){ return; } window.selectedPickupDate=ds; if(selDisplay){ try{ selDisplay.innerHTML=''; }catch(_){ } var wrap=document.createElement('div'); wrap.className='selected-date-info'; var dayEl=document.createElement('div'); dayEl.className='selected-date-day'; dayEl.textContent=ds.split('-')[2]; var my=document.createElement('div'); my.className='selected-date-month-year'; my.textContent=startDate.toLocaleString('en-US',{ month:'long'})+' '+year; var wk=document.createElement('div'); wk.className='selected-date-weekday'; wk.textContent=(new Date(ds)).toLocaleString('en-US',{ weekday:'long'}); wrap.appendChild(dayEl); wrap.appendChild(my); wrap.appendChild(wk); selDisplay.appendChild(wrap); }
               try{ var prevSel=grid.querySelector('.calendar-day.selected'); if(prevSel){ prevSel.className=prevSel.className.replace(' selected',''); } }catch(_){ }
               cellEl.className+=' selected';
+              try{ if(window.updateTimeTabsForDate){ window.updateTimeTabsForDate(ds); } }catch(_){ }
             }); })(cell, dayStr, isPast);
             grid.appendChild(cell);
           } };
@@ -118,8 +122,10 @@
       }
       if(prevBtn){ prevBtn.addEventListener('click', function(){ current.setMonth(current.getMonth()-1); render(); }); }
       if(nextBtn){ nextBtn.addEventListener('click', function(){ current.setMonth(current.getMonth()+1); render(); }); }
+      try{ window.updateDayStatus=function(ds){ if(!ds) return; if(typeof window.fetch!=='function') return; window.fetch('/api/availability/'+encodeURIComponent(ds)).then(function(r){ return r.json(); }).then(function(row){ var mA=(row.morning_available!==undefined)?!!row.morning_available:!!row.morningAvailable; var eA=(row.evening_available!==undefined)?!!row.evening_available:!!row.eveningAvailable; var st=(mA && eA)?'available':((mA || eA)?'partial':'booked'); var cell=grid.querySelector('[data-date="'+ds+'"]'); if(!cell) return; cell.className='calendar-day'; if(st==='available'){ cell.className+=' available'; } else if(st==='partial'){ cell.className+=' partial'; } else { cell.className+=' booked'; } var today=new Date(); today.setHours(0,0,0,0); var parts=ds.split('-'); var dObj=new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2])); dObj.setHours(0,0,0,0); var isPast=dObj.getTime()<today.getTime(); var lab=cell.querySelector('.calendar-day-status'); if(!lab){ lab=document.createElement('div'); lab.className='calendar-day-status'; cell.appendChild(lab); } if(!isPast && st!=='available'){ lab.textContent= mA ? 'Morning available' : 'Evening available'; } else { lab.textContent=''; } }).catch(function(){}); }; }catch(_){ }
       render();
       try{ window.refreshCalendar=function(){ render(); }; }catch(_){ }
+      try{ window.updateTimeTabsForDate=function(ds){ if(!ds) return; if(typeof window.fetch!=='function') return; var morningTab=document.querySelector('[data-time="morning"]'); var eveningTab=document.querySelector('[data-time="evening"]'); window.fetch('/api/availability/'+encodeURIComponent(ds)).then(function(r){ return r.json(); }).then(function(row){ var mA=(row.morning_available!==undefined)?!!row.morning_available:!!row.morningAvailable; var eA=(row.evening_available!==undefined)?!!row.evening_available:!!row.eveningAvailable; if(morningTab){ if(!mA){ morningTab.classList.add('disabled'); morningTab.style.pointerEvents='none'; } else { morningTab.classList.remove('disabled'); morningTab.style.pointerEvents='auto'; } } if(eveningTab){ if(!eA){ eveningTab.classList.add('disabled'); eveningTab.style.pointerEvents='none'; } else { eveningTab.classList.remove('disabled'); eveningTab.style.pointerEvents='auto'; } } var active=document.querySelector('.time-tab.active'); if(active && active.className.indexOf('disabled')!==-1){ try{ active.classList.remove('active'); }catch(_){ } if(mA){ if(morningTab){ morningTab.classList.add('active'); } } else if(eA){ if(eveningTab){ eveningTab.classList.add('active'); } } } }).catch(function(){}); }; }catch(_){ }
       try{ setTimeout(function(){ var totalDays=(new Date(current.getFullYear(), current.getMonth()+1, 0)).getDate(); var cells=grid.querySelectorAll('.calendar-day').length; if(cells>=totalDays){ if(notice){ notice.textContent='Calendar ready: '+cells+' cells'; notice.classList.remove('hidden'); notice.style.background='#d4edda'; } } else { if(notice){ notice.textContent='Calendar error: expected '+totalDays+' cells, got '+cells; notice.classList.remove('hidden'); notice.style.background='#f8d7da'; } } }, 80); }catch(_){ }
     })();
   });

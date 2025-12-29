@@ -38,9 +38,13 @@ router.get('/', async (req, res) => {
         const next = new Date(d); next.setDate(next.getDate() + 1)
         query = query.gte('date', d.toISOString()).lt('date', next.toISOString())
       } else if (startDate && endDate) {
-        query = query.gte('date', new Date(startDate).toISOString()).lte('date', new Date(endDate).toISOString())
+        const s = new Date(startDate); s.setHours(0,0,0,0)
+        const e = new Date(endDate); e.setHours(0,0,0,0)
+        const eNext = new Date(e.getTime() + 86400000)
+        query = query.gte('date', s.toISOString()).lt('date', eNext.toISOString())
       } else if (startDate) {
-        query = query.gte('date', new Date(startDate).toISOString())
+        const s2 = new Date(startDate); s2.setHours(0,0,0,0)
+        query = query.gte('date', s2.toISOString())
       }
       query = query.order('date', { ascending: true })
       const { data, error } = await query
@@ -53,9 +57,21 @@ router.get('/', async (req, res) => {
       return res.json(data || [])
     } else {
       const where = {}
-      if (date) where.date = new Date(date)
-      else if (startDate && endDate) where.date = { gte: new Date(startDate), lte: new Date(endDate) }
-      else if (startDate) where.date = { gte: new Date(startDate) }
+      if (date) {
+        const d = new Date(date); d.setHours(0,0,0,0)
+        const next = new Date(d.getTime() + 86400000)
+        where.date = { gte: d, lt: next }
+      }
+      else if (startDate && endDate) {
+        const s = new Date(startDate); s.setHours(0,0,0,0)
+        const e = new Date(endDate); e.setHours(0,0,0,0)
+        const eNext = new Date(e.getTime() + 86400000)
+        where.date = { gte: s, lt: eNext }
+      }
+      else if (startDate) {
+        const s2 = new Date(startDate); s2.setHours(0,0,0,0)
+        where.date = { gte: s2 }
+      }
       const availability = await prisma.availability.findMany({ where, orderBy: { date: 'asc' } })
       if (date && availability.length === 0) {
         const defaultAvailability = await prisma.availability.create({ data: { date: new Date(date), morningAvailable: true, eveningAvailable: true, maxBookings: 10, currentBookings: 0 } })
