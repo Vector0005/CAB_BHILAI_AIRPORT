@@ -1,0 +1,14 @@
+name = "airport-booking-worker"
+main = "worker.js"
+compatibility_date = "2025-11-30"
+workers_dev = true
+
+[vars]
+# These are placeholders; configure in Cloudflare dashboard
+# SUPABASE_URL = ""
+# SUPABASE_ANON_KEY = ""
+# SUPABASE_SERVICE_ROLE_KEY = ""
+# API_BASE_URL = ""
+# ADMIN_EMAIL = ""
+# ADMIN_PASSWORD = ""
+# JWT_SECRET = ""
