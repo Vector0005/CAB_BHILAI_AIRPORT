@@ -663,10 +663,6 @@ class AirportBookingSystem {
             errors.push('Please select trip type');
         }
 
-        if (!this.bookingData.pickupLocation.trim()) {
-            errors.push('Please enter pickup location');
-        }
-
         return errors;
     }
 
@@ -701,11 +697,13 @@ class AirportBookingSystem {
         }
 
         const locVal = String(this.bookingData.pickupLocation || '').trim();
-        const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locVal);
-        const isMapUrl = /^https?:\/\//i.test(locVal) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locVal);
-        if (!isLatLng && !isMapUrl) {
-            this.showNotice('error', 'Paste a Google Maps link or click Get Current Location to use coordinates');
-            return;
+        if (locVal.length > 0) {
+            const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locVal);
+            const isMapUrl = /^https?:\/\//i.test(locVal) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locVal);
+            if (!isLatLng && !isMapUrl) {
+                this.showNotice('error', 'Paste a Google Maps link or click Get Current Location to use coordinates');
+                return;
+            }
         }
 
         const errors = this.validateForm();
