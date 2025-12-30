@@ -21,9 +21,15 @@ function fetchText(url) {
 }
 
 async function loadRemoteScript() {
-  const js = await fetchText(REMOTE_BASE + '/script-backend.js?v=es5')
+  const cb = Date.now()
+  const js = await fetchText(REMOTE_BASE + '/script-backend.js?v=es5&cb=' + cb)
   return js
 }
+
+test('Remote script includes updated notice text', async () => {
+  const js = await loadRemoteScript()
+  expect(js).toEqual(expect.stringContaining('Enter address (min 5 chars), Google Maps link, or coordinates'))
+})
 
 function setupDom() {
   document.body.innerHTML = `
