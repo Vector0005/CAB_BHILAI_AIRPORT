@@ -1,0 +1,4 @@
+name = "cab-bhilai-airport-admin"
+compatibility_date = "2025-11-30"
+main = "../worker.js"
+send_metrics = false

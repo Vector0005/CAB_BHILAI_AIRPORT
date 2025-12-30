@@ -141,27 +141,7 @@ class AirportBookingSystem {
                 this.generateCalendar();
             }
         } catch (error) {
-            try {
-                const supabaseUrl = 'https://vkorkcyltikzfounowqh.supabase.co';
-                const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZrb3JrY3lsdGlremZvdW5vd3FoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2MzE4MTEsImV4cCI6MjA3OTIwNzgxMX0.C6DYciv1Nmsnyby5PO1fMFGigOZ57O1kOhQbKyzm_PM';
-                const params = new URLSearchParams({ select: '*' });
-                const r2 = await fetch(`${supabaseUrl}/rest/v1/availability?${params.toString()}`, { headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` } });
-                if (r2.ok) {
-                    const rows = await r2.json();
-                    this.availabilityData = rows.reduce((acc, item) => {
-                        const key = this.formatDateLocal(new Date(item.date));
-                        const morning = item.morningAvailable ?? item.morning_available ?? true;
-                        const evening = item.eveningAvailable ?? item.evening_available ?? true;
-                        acc[key] = { morning: !!morning, evening: !!evening };
-                        return acc;
-                    }, {});
-                    this.generateCalendar();
-                    return;
-                }
-                this.generateMockAvailability();
-            } catch (e2) {
-                this.generateMockAvailability();
-            }
+            this.generateMockAvailability();
         }
     }
 
@@ -337,8 +317,8 @@ class AirportBookingSystem {
             let statusText = '';
 
             if (!availability.morning && !availability.evening) {
-                status = 'unavailable';
-                statusText = 'Unavailable';
+                status = 'booked';
+                statusText = 'Fully booked';
             } else if (!availability.morning) {
                 status = 'partial';
                 statusText = 'Evening Available';
@@ -354,7 +334,7 @@ class AirportBookingSystem {
                 <div class="calendar-day-status">${displayText}</div>
             `;
 
-            if (!isPastDate && status !== 'unavailable') {
+            if (!isPastDate && status !== 'booked') {
                 dayElement.addEventListener('click', () => {
                     this.selectDate(currentDay);
                 });
@@ -683,9 +663,7 @@ class AirportBookingSystem {
             errors.push('Please select trip type');
         }
 
-        if (!this.bookingData.pickupLocation.trim()) {
-            errors.push('Please enter pickup location');
-        }
+        // Pickup/Drop location is optional
 
         return errors;
     }
@@ -721,11 +699,14 @@ class AirportBookingSystem {
         }
 
         const locVal = String(this.bookingData.pickupLocation || '').trim();
-        const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locVal);
-        const isMapUrl = /^https?:\/\//i.test(locVal) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locVal);
-        if (!isLatLng && !isMapUrl) {
-            this.showNotice('error', 'Paste a Google Maps link or click Get Current Location to use coordinates');
-            return;
+        if (locVal.length > 0) {
+            const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locVal);
+            const isMapUrl = /^https?:\/\//i.test(locVal) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locVal);
+            const isPlainAddress = locVal.length >= 5;
+            if (!(isLatLng || isMapUrl || isPlainAddress)) {
+                this.showNotice('error', 'Enter address (min 5 chars), Google Maps link, or coordinates');
+                return;
+            }
         }
 
         const errors = this.validateForm();

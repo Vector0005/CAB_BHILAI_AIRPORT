@@ -189,6 +189,16 @@ body {
     font-size: 10px;
 }
 
+.calendar-day.unavailable {
+    background: #f1f5f9;
+    color: #94a3b8;
+    opacity: 0.65;
+    border: 1px solid #e2e8f0;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+.calendar-day.unavailable .calendar-day-number { font-size: 18px; }
+.calendar-day.unavailable .calendar-day-status { font-size: 10px; }
 .calendar-day.other-month {
     color: #cbd5e1;
     background: #f1f5f9;
@@ -571,8 +581,6 @@ body {
     gap: 15px;
 }
 
-
-
 .radio-button {
     display: flex;
     align-items: center;
@@ -602,8 +610,6 @@ body {
     border-color: #0ea5e9;
     color: white;
 }
-
-
 
 .radio-label {
     display: flex;
@@ -717,6 +723,10 @@ body {
         width: 100%;
         justify-content: center;
     }
+    .footer-actions { flex-direction: column; }
+    .hero-link { flex-direction: column; }
+    .hero-title { font-size: 24px; }
+    .hero-subtext { max-width: 100%; }
 }
 
 @media (max-width: 480px) {
