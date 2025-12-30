@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Debug Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 20px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .calendar-container { border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+        .calendar-day { 
+            display: inline-block; 
+            width: 40px; 
+            height: 40px; 
+            margin: 2px; 
+            text-align: center; 
+            line-height: 40px; 
+            border: 1px solid #ddd; 
+            cursor: pointer;
+        }
+        .calendar-day.available { background: #d4edda; }
+        .calendar-day.partial { background: #fff3cd; }
+        .calendar-day.booked { background: #f8d7da; }
+        .calendar-day.selected { border: 2px solid #007bff; }
+        .calendar-day.past-date { opacity: 0.5; cursor: not-allowed; }
+        .calendar-day.empty { border: none; cursor: default; }
+        .nav-btn { 
+            padding: 10px 15px; 
+            margin: 0 10px; 
+            cursor: pointer; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px;
+        }
+        .nav-btn:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🗓️ Calendar Debug Test</h1>
+    
+    <div id="test-results"></div>
+    
+    <div class="calendar-container">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="nav-btn" id="prevMonth">‹ Previous</button>
+            <span id="currentMonth" style="font-size: 18px; font-weight: bold; margin: 0 20px;"></span>
+            <button class="nav-btn" id="nextMonth">Next ›</button>
+        </div>
+        <div id="calendarGrid"></div>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <h3>Debug Information:</h3>
+        <div id="debug-info"></div>
+    </div>
+
+    <script>
+        class CalendarDebug {
+            constructor() {
+                this.currentDate = new Date();
+                this.selectedDate = null;
+                this.availabilityData = this.generateMockAvailability();
+                this.clickCount = 0;
+                this.navigationCount = { prev: 0, next: 0 };
+                this.init();
+            }
+
+            init() {
+                this.setupNavigation();
+                this.generateCalendar();
+                this.runDebugTests();
+            }
+
+            generateMockAvailability() {
+                const data = {};
+                const today = new Date();
+                
+                for (let i = 0; i < 60; i++) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() + i);
+                    const dateStr = date.toISOString().split('T')[0];
+                    
+                    // Create specific patterns for testing
+                    let morningAvailable = true;
+                    let eveningAvailable = true;
+                    
+                    // Create some patterns for testing
+                    if (i % 7 === 0) {
+                        morningAvailable = false; // Every Sunday morning booked
+                    }
+                    if (i % 5 === 0) {
+                        eveningAvailable = false; // Every 5th day evening booked
+                    }
+                    if (i % 3 === 0 && i % 7 !== 0) {
+                        morningAvailable = false;
+                        eveningAvailable = false; // Every 3rd day (except Sundays) fully booked
+                    }
+                    
+                    data[dateStr] = {
+                        morning: morningAvailable,
+                        evening: eveningAvailable
+                    };
+                }
+                
+                return data;
+            }
+
+            setupNavigation() {
+                const prevBtn = document.getElementById('prevMonth');
+                const nextBtn = document.getElementById('nextMonth');
+                
+                prevBtn.addEventListener('click', () => {
+                    this.navigationCount.prev++;
+                    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                    this.generateCalendar();
+                    this.logDebug('Month Navigation', `Previous month clicked (count: ${this.navigationCount.prev})`, 'info');
+                });
+                
+                nextBtn.addEventListener('click', () => {
+                    this.navigationCount.next++;
+                    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                    this.generateCalendar();
+                    this.logDebug('Month Navigation', `Next month clicked (count: ${this.navigationCount.next})`, 'info');
+                });
+            }
+
+            generateCalendar() {
+                const monthYear = document.getElementById('currentMonth');
+                const calendarGrid = document.getElementById('calendarGrid');
+                
+                const currentMonthText = this.currentDate.toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    year: 'numeric' 
+                });
+                
+                monthYear.textContent = currentMonthText;
+                
+                calendarGrid.innerHTML = '';
+                
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                this.logDebug('Calendar Generation', `Generating calendar for ${currentMonthText} (${daysInMonth} days)`, 'info');
+                
+                // Add weekday headers
+                const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                weekdays.forEach(day => {
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'calendar-day empty';
+                    dayHeader.textContent = day;
+                    calendarGrid.appendChild(dayHeader);
+                });
+                
+                // Empty cells before first day
+                for (let i = 0; i < firstDay; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'calendar-day empty';
+                    calendarGrid.appendChild(emptyCell);
+                }
+                
+                // Calendar days
+                let availableCount = 0;
+                let partialCount = 0;
+                let bookedCount = 0;
+                let pastCount = 0;
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day';
+                    
+                    const currentDay = new Date(year, month, day);
+                    const dateStr = currentDay.toISOString().split('T')[0];
+                    
+                    const isPastDate = currentDay < today;
+                    
+                    if (isPastDate) {
+                        dayElement.classList.add('past-date');
+                        pastCount++;
+                    }
+                    
+                    // Get availability
+                    const availability = this.availabilityData[dateStr] || { 
+                        morning: true, 
+                        evening: true 
+                    };
+                    
+                    // Determine status
+                    let status = 'available';
+                    let statusText = '';
+                    
+                    if (!availability.morning && !availability.evening) {
+                        status = 'booked';
+                        statusText = 'Fully Booked';
+                        bookedCount++;
+                    } else if (!availability.morning) {
+                        status = 'partial';
+                        statusText = 'Morning Booked';
+                        partialCount++;
+                    } else if (!availability.evening) {
+                        status = 'partial';
+                        statusText = 'Evening Booked';
+                        partialCount++;
+                    } else {
+                        availableCount++;
+                    }
+                    
+                    dayElement.classList.add(status);
+                    dayElement.innerHTML = `
+                        <div style="font-weight: bold;">${day}</div>
+                        <div style="font-size: 8px; line-height: 1;">${statusText}</div>
+                    `;
+                    
+                    if (!isPastDate) {
+                        dayElement.addEventListener('click', () => {
+                            this.clickCount++;
+                            this.selectDate(currentDay, dayElement);
+                            this.logDebug('Date Selection', `Day ${day} clicked (total clicks: ${this.clickCount})`, 'success');
+                        });
+                    }
+                    
+                    calendarGrid.appendChild(dayElement);
+                }
+                
+                this.logDebug('Calendar Statistics', 
+                    `Available: ${availableCount}, Partial: ${partialCount}, Booked: ${bookedCount}, Past: ${pastCount}`, 
+                    'info'
+                );
+            }
+
+            selectDate(date, element) {
+                // Remove previous selection
+                document.querySelectorAll('.calendar-day').forEach(day => {
+                    day.classList.remove('selected');
+                });
+                
+                // Add selection to clicked element
+                if (element) {
+                    element.classList.add('selected');
+                }
+                
+                this.selectedDate = date;
+                this.logDebug('Date Selection', `Selected date: ${date.toLocaleDateString()}`, 'success');
+            }
+
+            runDebugTests() {
+                this.logDebug('System Initialization', 'Calendar debug system loaded', 'success');
+                
+                // Test month navigation
+                setTimeout(() => {
+                    this.logDebug('Navigation Test', 'Testing month navigation...', 'info');
+                    
+                    // Simulate navigation
+                    const prevBtn = document.getElementById('prevMonth');
+                    const nextBtn = document.getElementById('nextMonth');
+                    
+                    if (prevBtn && nextBtn) {
+                        this.logDebug('Navigation Elements', 'Previous and Next buttons found', 'success');
+                    } else {
+                        this.logDebug('Navigation Elements', 'Navigation buttons not found', 'error');
+                    }
+                }, 1000);
+                
+                // Test availability display
+                setTimeout(() => {
+                    const availableDays = document.querySelectorAll('.calendar-day.available');
+                    const partialDays = document.querySelectorAll('.calendar-day.partial');
+                    const bookedDays = document.querySelectorAll('.calendar-day.booked');
+                    
+                    let availabilityIssues = 0;
+                    let correctDisplay = 0;
+                    
+                    // Check available days (should not have status text)
+                    availableDays.forEach(day => {
+                        const statusText = day.querySelector('div:last-child').textContent;
+                        if (statusText && statusText !== '') {
+                            availabilityIssues++;
+                            this.logDebug('Availability Error', `Available day has status text: "${statusText}"`, 'error');
+                        } else {
+                            correctDisplay++;
+                        }
+                    });
+                    
+                    // Check partial days (should have status text)
+                    partialDays.forEach(day => {
+                        const statusText = day.querySelector('div:last-child').textContent;
+                        if (!statusText || statusText === '') {
+                            availabilityIssues++;
+                            this.logDebug('Availability Error', 'Partial day missing status text', 'error');
+                        } else {
+                            correctDisplay++;
+                        }
+                    });
+                    
+                    // Check booked days (should have status text)
+                    bookedDays.forEach(day => {
+                        const statusText = day.querySelector('div:last-child').textContent;
+                        if (!statusText || statusText === '') {
+                            availabilityIssues++;
+                            this.logDebug('Availability Error', 'Booked day missing status text', 'error');
+                        } else {
+                            correctDisplay++;
+                        }
+                    });
+                    
+                    this.logDebug('Availability Summary', 
+                        `Available: ${availableDays.length}, Partial: ${partialDays.length}, Booked: ${bookedDays.length}`, 
+                        'info'
+                    );
+                    
+                    if (availabilityIssues === 0) {
+                        this.logDebug('Availability Display', 'All availability text displays are correct', 'success');
+                    } else {
+                        this.logDebug('Availability Display', `${availabilityIssues} issues found, ${correctDisplay} correct`, 'error');
+                    }
+                }, 2000);
+            }
+
+            logDebug(testName, message, type) {
+                const resultsContainer = document.getElementById('test-results');
+                const debugContainer = document.getElementById('debug-info');
+                
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${type}`;
+                resultDiv.innerHTML = `
+                    <strong>${testName}:</strong> ${message}
+                    <span style="float: right; font-size: 12px;">${new Date().toLocaleTimeString()}</span>
+                `;
+                resultsContainer.appendChild(resultDiv);
+                
+                // Also add to debug info
+                const debugDiv = document.createElement('div');
+                debugDiv.style.cssText = 'font-family: monospace; font-size: 12px; margin: 5px 0; padding: 5px; background: #f8f9fa; border-left: 3px solid #007bff;';
+                debugDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${testName}: ${message}`;
+                debugContainer.appendChild(debugDiv);
+                
+                // Auto-scroll to latest result
+                resultsContainer.scrollTop = resultsContainer.scrollHeight;
+                debugContainer.scrollTop = debugContainer.scrollHeight;
+            }
+        }
+
+        // Initialize the debug system
+        new CalendarDebug();
+    </script>
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendar Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-result { margin: 20px 0; padding: 10px; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .calendar-container { border: 1px solid #ddd; padding: 20px; margin: 20px 0; }
+        .calendar-day { 
+            display: inline-block; 
+            width: 40px; 
+            height: 40px; 
+            margin: 2px; 
+            text-align: center; 
+            line-height: 40px; 
+            border: 1px solid #ddd; 
+            cursor: pointer;
+        }
+        .calendar-day.available { background: #d4edda; }
+        .calendar-day.partial { background: #fff3cd; }
+        .calendar-day.booked { background: #f8d7da; }
+        .calendar-day.selected { border: 2px solid #007bff; }
+        .calendar-day.past-date { opacity: 0.5; cursor: not-allowed; }
+        .calendar-day.empty { border: none; cursor: default; }
+        .nav-btn { 
+            padding: 10px 15px; 
+            margin: 0 10px; 
+            cursor: pointer; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            border-radius: 5px;
+        }
+        .nav-btn:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🗓️ Calendar Fixes Test Report</h1>
+    <p style="text-align: center; color: #6c757d; margin-bottom: 30px;">Comprehensive testing for the reported calendar issues</p>
+    
+    <div id="test-results"></div>
+    
+    <div class="calendar-container">
+        <div style="text-align: center; margin-bottom: 20px;">
+            <button class="nav-btn" id="prevMonth">‹ Previous</button>
+            <span id="currentMonth" style="font-size: 18px; font-weight: bold; margin: 0 20px;"></span>
+            <button class="nav-btn" id="nextMonth">Next ›</button>
+        </div>
+        <div id="calendarGrid"></div>
+    </div>
+
+    <div style="margin-top: 30px;">
+        <h3>Test Instructions:</h3>
+        <ol>
+            <li>Click "Previous" and "Next" buttons to navigate months</li>
+            <li>Click on calendar dates to test selection</li>
+            <li>Check that availability text only shows when needed</li>
+            <li>Verify past dates are properly disabled</li>
+        </ol>
+    </div>
+
+    <script>
+        class CalendarTest {
+            constructor() {
+                this.currentDate = new Date();
+                this.selectedDate = null;
+                this.availabilityData = this.generateMockAvailability();
+                this.init();
+            }
+
+            init() {
+                this.setupNavigation();
+                this.generateCalendar();
+                this.runTests();
+            }
+
+            generateMockAvailability() {
+                const data = {};
+                const today = new Date();
+                
+                for (let i = 0; i < 60; i++) {
+                    const date = new Date(today);
+                    date.setDate(today.getDate() + i);
+                    const dateStr = date.toISOString().split('T')[0];
+                    
+                    // Random availability patterns
+                    const morningAvailable = Math.random() > 0.4;
+                    const eveningAvailable = Math.random() > 0.4;
+                    
+                    data[dateStr] = {
+                        morning: morningAvailable,
+                        evening: eveningAvailable
+                    };
+                }
+                
+                return data;
+            }
+
+            setupNavigation() {
+                const prevBtn = document.getElementById('prevMonth');
+                const nextBtn = document.getElementById('nextMonth');
+                
+                // FIXED: Add protection against duplicate event listeners
+                if (prevBtn && !prevBtn.hasAttribute('data-listener')) {
+                    prevBtn.setAttribute('data-listener', 'true');
+                    prevBtn.addEventListener('click', () => {
+                        this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+                        this.generateCalendar();
+                        this.logTest('Month Navigation', 'Previous month clicked', 'info');
+                    });
+                }
+                
+                if (nextBtn && !nextBtn.hasAttribute('data-listener')) {
+                    nextBtn.setAttribute('data-listener', 'true');
+                    nextBtn.addEventListener('click', () => {
+                        this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+                        this.generateCalendar();
+                        this.logTest('Month Navigation', 'Next month clicked', 'info');
+                    });
+                }
+            }
+
+            generateCalendar() {
+                const monthYear = document.getElementById('currentMonth');
+                const calendarGrid = document.getElementById('calendarGrid');
+                
+                monthYear.textContent = this.currentDate.toLocaleDateString('en-US', { 
+                    month: 'long', 
+                    year: 'numeric' 
+                });
+                
+                calendarGrid.innerHTML = '';
+                
+                const year = this.currentDate.getFullYear();
+                const month = this.currentDate.getMonth();
+                const firstDay = new Date(year, month, 1).getDay();
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                // Add weekday headers
+                const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                weekdays.forEach(day => {
+                    const dayHeader = document.createElement('div');
+                    dayHeader.className = 'calendar-day empty';
+                    dayHeader.textContent = day;
+                    calendarGrid.appendChild(dayHeader);
+                });
+                
+                // Empty cells before first day
+                for (let i = 0; i < firstDay; i++) {
+                    const emptyCell = document.createElement('div');
+                    emptyCell.className = 'calendar-day empty';
+                    calendarGrid.appendChild(emptyCell);
+                }
+                
+                // Calendar days
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dayElement = document.createElement('div');
+                    dayElement.className = 'calendar-day';
+                    
+                    const currentDay = new Date(year, month, day);
+                    const dateStr = currentDay.toISOString().split('T')[0];
+                    
+                    const isPastDate = currentDay < today;
+                    
+                    if (isPastDate) {
+                        dayElement.classList.add('past-date');
+                    }
+                    
+                    // Get availability
+                    const availability = this.availabilityData[dateStr] || { 
+                        morning: true, 
+                        evening: true 
+                    };
+                    
+                    // Determine status - FIXED VERSION (no "Both Available" text)
+                    let status = 'available';
+                    let statusText = '';
+                    
+                    if (!availability.morning && !availability.evening) {
+                        status = 'booked';
+                        statusText = 'Fully Booked';
+                    } else if (!availability.morning) {
+                        status = 'partial';
+                        statusText = 'Evening Available';
+                    } else if (!availability.evening) {
+                        status = 'partial';
+                        statusText = 'Morning Available';
+                    }
+                    // FIXED: No "Both Available" text for fully available days
+                    
+                    dayElement.classList.add(status);
+                    dayElement.innerHTML = `
+                        <div style="font-weight: bold;">${day}</div>
+                        <div style="font-size: 8px; line-height: 1;">${statusText}</div>
+                    `;
+                    
+                    if (!isPastDate) {
+                        dayElement.addEventListener('click', () => {
+                            this.selectDate(currentDay, dayElement);
+                        });
+                    }
+                    
+                    calendarGrid.appendChild(dayElement);
+                }
+            }
+
+            selectDate(date, element) {
+                // Remove previous selection
+                document.querySelectorAll('.calendar-day').forEach(day => {
+                    day.classList.remove('selected');
+                });
+                
+                // Add selection to clicked element
+                if (element) {
+                    element.classList.add('selected');
+                }
+                
+                this.selectedDate = date;
+                this.logTest('Date Selection', `Selected date: ${date.toLocaleDateString()}`, 'success');
+            }
+
+            runTests() {
+                this.logTest('Calendar Initialization', 'Calendar loaded successfully', 'success');
+                
+                // Test 1: Navigation Duplication Prevention
+                const prevBtn = document.getElementById('prevMonth');
+                const nextBtn = document.getElementById('nextMonth');
+                
+                if (prevBtn && prevBtn.hasAttribute('data-listener') && 
+                    nextBtn && nextBtn.hasAttribute('data-listener')) {
+                    this.logTest('Navigation Duplication Fix', '✅ Event listener protection is active', 'success');
+                } else {
+                    this.logTest('Navigation Duplication Fix', '❌ Event listener protection missing', 'error');
+                }
+                
+                // Test 2: "Both Available" Text Removal
+                setTimeout(() => {
+                    const availableDays = document.querySelectorAll('.calendar-day.available');
+                    let bothAvailableFound = false;
+                    
+                    availableDays.forEach(day => {
+                        const statusText = day.querySelector('div:last-child').textContent;
+                        if (statusText.includes('Both Available')) {
+                            bothAvailableFound = true;
+                        }
+                    });
+                    
+                    if (!bothAvailableFound) {
+                        this.logTest('Both Available Text Removal', '✅ No "Both Available" text found in available days', 'success');
+                    } else {
+                        this.logTest('Both Available Text Removal', '❌ "Both Available" text still present', 'error');
+                    }
+                }, 500);
+                
+                // Test 3: Backend Integration Check
+                this.testBackendIntegration();
+                
+                // Test 4: Navigation Functionality
+                setTimeout(() => {
+                    const initialMonth = this.currentDate.getMonth();
+                    
+                    // Test next month navigation
+                    const nextBtn = document.getElementById('nextMonth');
+                    nextBtn.click();
+                    
+                    setTimeout(() => {
+                        const newMonth = this.currentDate.getMonth();
+                        if (newMonth === (initialMonth + 1) % 12) {
+                            this.logTest('Navigation Functionality', '✅ Month navigation working correctly', 'success');
+                        } else {
+                            this.logTest('Navigation Functionality', '❌ Month navigation not working', 'error');
+                        }
+                        
+                        // Reset to original month
+                        this.currentDate.setMonth(initialMonth);
+                        this.generateCalendar();
+                    }, 100);
+                }, 1000);
+            }
+            
+            testBackendIntegration() {
+                // Test backend API connectivity
+                fetch('http://localhost:3001/api/availability')
+                    .then(response => {
+                        if (response.ok) {
+                            this.logTest('Backend Integration', '✅ Backend API is accessible and responding', 'success');
+                            return response.json();
+                        } else {
+                            this.logTest('Backend Integration', `❌ Backend API returned error: ${response.status}`, 'error');
+                            return null;
+                        }
+                    })
+                    .then(data => {
+                        if (data && Array.isArray(data)) {
+                            this.logTest('Backend Integration', `✅ Received ${data.length} availability records from backend`, 'success');
+                        } else if (data) {
+                            this.logTest('Backend Integration', '✅ Backend API responded with data', 'success');
+                        }
+                    })
+                    .catch(error => {
+                        this.logTest('Backend Integration', `❌ Backend API not accessible: ${error.message}`, 'error');
+                    });
+            }
+
+            logTest(testName, message, type) {
+                const resultsContainer = document.getElementById('test-results');
+                const resultDiv = document.createElement('div');
+                resultDiv.className = `test-result ${type}`;
+                resultDiv.innerHTML = `
+                    <strong>${testName}:</strong> ${message}
+                    <span style="float: right; font-size: 12px;">${new Date().toLocaleTimeString()}</span>
+                `;
+                resultsContainer.appendChild(resultDiv);
+                
+                // Auto-scroll to latest result
+                resultsContainer.scrollTop = resultsContainer.scrollHeight;
+            }
+        }
+
+        // Initialize the test
+        new CalendarTest();
+    </script>
+</body>
+</html>

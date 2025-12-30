@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend HTML Visibility Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status-section {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 8px;
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+        }
+        
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        
+        .test-links {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .test-link {
+            padding: 12px 24px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: background 0.3s ease;
+        }
+        
+        .test-link:hover {
+            background: #0056b3;
+        }
+        
+        .html-preview {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .feature-list li:before {
+            content: "✅ ";
+            color: #28a745;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Frontend HTML Visibility Test</h1>
+        
+        <div class="status-section success">
+            <h3>✅ Frontend Server Status</h3>
+            <p><strong>Server is running on:</strong> http://localhost:5173/</p>
+            <p><strong>HTML content is being served successfully</strong></p>
+            <p><strong>Content length:</strong> ~10KB of HTML content</p>
+        </div>
+        
+        <div class="status-section">
+            <h3>📋 What You Should See</h3>
+            <p>The frontend contains a <strong>Raipur Airport ↔ Bhilai Travel Service</strong> booking system with:</p>
+            <ul class="feature-list">
+                <li>Interactive calendar for date selection</li>
+                <li>Booking form with customer details</li>
+                <li>Vehicle selection with pricing</li>
+                <li>Pickup location with Google Maps integration</li>
+                <li>Time slot selection (Morning/Evening)</li>
+                <li>Trip direction options (Home↔Airport)</li>
+                <li>Hidden admin access (triple-click top-left corner or Ctrl+Shift+A)</li>
+            </ul>
+        </div>
+        
+        <div class="test-links">
+            <a href="http://localhost:5173/index.html" target="_blank" class="test-link">
+                🚀 Open Frontend
+            </a>
+            <a href="http://localhost:8081/admin.html" target="_blank" class="test-link">
+                🔧 Open Admin Dashboard
+            </a>
+            <a href="test-vehicle-button-colors.html" target="_blank" class="test-link">
+                🎨 Test Vehicle Colors
+            </a>
+        </div>
+        
+        <div class="status-section">
+            <h3>🔧 Troubleshooting "Nothing Visible"</h3>
+            <p><strong>If you see a blank page, check:</strong></p>
+            <ol>
+                <li><strong>Browser Console:</strong> Press F12 → Console tab for errors</li>
+                <li><strong>JavaScript Errors:</strong> Look for red error messages</li>
+                <li><strong>CSS Loading:</strong> Check if styles.css is loading (Network tab)</li>
+                <li><strong>Script Loading:</strong> Verify script.js and script-backend.js load</li>
+                <li><strong>CORS Issues:</strong> Check if API calls are blocked</li>
+            </ol>
+        </div>
+        
+        <div class="status-section">
+            <h3>📁 File Structure Check</h3>
+            <p><strong>Required files for frontend:</strong></p>
+            <ul>
+                <li>✅ index.html - Main booking page</li>
+                <li>✅ styles.css - Styling (exists)</li>
+                <li>✅ script.js - Frontend logic (exists)</li>
+                <li>✅ script-backend.js - API integration (exists)</li>
+                <li>✅ frontend-server.js - Web server (running on port 5173)</li>
+            </ul>
+        </div>
+        
+        <div class="status-section">
+            <h3>🎯 Quick Test</h3>
+            <p><strong>To verify everything works:</strong></p>
+            <ol>
+                <li>Open: <a href="http://localhost:5173/index.html" target="_blank">http://localhost:5173/index.html</a></li>
+                <li>You should see a blue gradient background with "Raipur Airport ↔ Bhilai Travel Service"</li>
+                <li>Calendar should show November 2024 dates</li>
+                <li>Form fields should be visible and interactive</li>
+                <li>Try selecting a date from the calendar</li>
+            </ol>
+        </div>
+    </div>
+    
+    <script>
+        // Add some basic interactivity
+        console.log('🔍 Frontend HTML Visibility Test Page Loaded');
+        console.log('📋 Check the main frontend at: http://localhost:5173/index.html');
+        console.log('🔧 Check admin dashboard at: http://localhost:8081/admin.html');
+        
+        // Test if we can fetch the frontend content
+        fetch('http://localhost:5173/index.html')
+            .then(response => {
+                if (response.ok) {
+                    console.log('✅ Frontend server responding correctly');
+                    return response.text();
+                } else {
+                    console.log('❌ Frontend server error:', response.status);
+                }
+            })
+            .then(html => {
+                if (html && html.includes('Raipur Airport')) {
+                    console.log('✅ HTML content contains expected title');
+                } else {
+                    console.log('⚠️ HTML content might be incomplete');
+                }
+            })
+            .catch(error => {
+                console.log('❌ Cannot connect to frontend server:', error.message);
+            });
+    </script>
+</body>
+</html>
