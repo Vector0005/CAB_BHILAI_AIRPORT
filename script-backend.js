@@ -42,7 +42,7 @@
       var tripType=String(tripRaw).toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
       var timeNode=document.querySelector('.time-tab.active'); var pickupTime=(timeNode && timeNode.getAttribute('data-time'))?timeNode.getAttribute('data-time'):''; if(timeNode && timeNode.className.indexOf('disabled')!==-1){ setNotice('Selected slot not available', false); return; }
       var locEl=document.getElementById('location'); var loc=((locEl && locEl.value)?locEl.value:'').trim();
-      if(loc.length>0){ var isLatLng=/^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(loc); var isMapUrl=/^https?:\/\//i.test(loc) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(loc); if(!isLatLng && !isMapUrl){ setNotice('Paste a Google Maps link or use Detect Location', false); return; } }
+      if(loc.length>0){ var isLatLng=/^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(loc); var isMapUrl=/^https?:\/\//i.test(loc) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(loc); var isPlain=loc.length>=5; if(!(isLatLng||isMapUrl||isPlain)){ setNotice('Enter address (min 5 chars), Google Maps link, or coordinates', false); return; } }
       var today=new Date(); today.setHours(0,0,0,0);
       var y=today.getFullYear(), m=('0'+(today.getMonth()+1)).slice(-2), d=('0'+today.getDate()).slice(-2);
       var dateSel=(window.selectedPickupDate && String(window.selectedPickupDate).length>=8)?window.selectedPickupDate:(y+'-'+m+'-'+d);

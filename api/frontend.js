@@ -700,8 +700,9 @@ class AirportBookingSystem {
         if (locVal.length > 0) {
             const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locVal);
             const isMapUrl = /^https?:\/\//i.test(locVal) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locVal);
-            if (!isLatLng && !isMapUrl) {
-                this.showNotice('error', 'Paste a Google Maps link or click Get Current Location to use coordinates');
+            const isPlainAddress = locVal.length >= 5;
+            if (!(isLatLng || isMapUrl || isPlainAddress)) {
+                this.showNotice('error', 'Enter address (min 5 chars), Google Maps link, or coordinates');
                 return;
             }
         }
