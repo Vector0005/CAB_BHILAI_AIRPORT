@@ -212,11 +212,14 @@ export default {
       const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
       const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
       const locInput = (document.getElementById('location')?.value || '').trim();
-      const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locInput);
-      const isMapUrl = /^https?:\/\//i.test(locInput) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locInput);
-      if (!isLatLng && !isMapUrl) {
-        setNotice('Paste a Google Maps link or click Detect Location to use coordinates', false);
-        return;
+      if (locInput.length > 0) {
+        const isLatLng = /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(locInput);
+        const isMapUrl = /^https?:\/\//i.test(locInput) && /google\.com\/maps|maps\.app\.goo\.gl/i.test(locInput);
+        const isPlain = locInput.length >= 5;
+        if (!(isLatLng || isMapUrl || isPlain)) {
+          setNotice('Enter address (min 5 chars), Google Maps link, or coordinates', false);
+          return;
+        }
       }
       const sel = window.selectedVehicle || {};
       const baseRate = Number(sel.rate || 0);
