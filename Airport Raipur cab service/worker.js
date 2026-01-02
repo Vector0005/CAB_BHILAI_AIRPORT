@@ -4,6 +4,10 @@ export default {
       const url = new URL(request.url);
       const json = (data, status = 200, extraHeaders) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...(extraHeaders || {}) } });
       if (url.pathname === '/assets/logo.svg') {
+        const direct = (env.LOGO_PUBLIC_URL || '').trim();
+        if (direct) {
+          try { const r0 = await fetch(direct, { method: 'HEAD' }); if (r0 && r0.ok) return Response.redirect(direct, 302); } catch (_) {}
+        }
         const sbBase = (env.SUPABASE_URL || '').trim();
         if (sbBase) {
           const base = sbBase.replace(/\/$/, '');

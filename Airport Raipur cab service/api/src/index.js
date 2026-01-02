@@ -115,6 +115,8 @@ async function ensureBrandingLogo() {
 
 app.get('/assets/logo.svg', async (req, res) => {
   try {
+    const direct = (process.env.LOGO_PUBLIC_URL || '').trim()
+    if (direct) return res.redirect(direct)
     const client = getSupabaseClient(false);
     if (!client) return res.status(404).send('Supabase not configured');
     const p1 = client.storage.from('branding').getPublicUrl('logo.svg');
