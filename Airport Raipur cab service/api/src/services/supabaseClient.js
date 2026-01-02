@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
-let cachedClient = null
+let cachedAnonClient = null
+let cachedServiceClient = null
 const SUPABASE_ONLY = (process.env.SUPABASE_ONLY || '').toLowerCase() === 'true'
 
 export function getSupabaseClient(useServiceRole = false) {
@@ -8,12 +9,19 @@ export function getSupabaseClient(useServiceRole = false) {
   const anon = process.env.SUPABASE_ANON_KEY
   const service = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url) return null
-  const key = useServiceRole ? service : anon
-  if (!key) return null
-  if (!cachedClient) {
-    cachedClient = createClient(url, key)
+  if (useServiceRole) {
+    if (!service) return null
+    if (!cachedServiceClient) {
+      cachedServiceClient = createClient(url, service)
+    }
+    return cachedServiceClient
+  } else {
+    if (!anon) return null
+    if (!cachedAnonClient) {
+      cachedAnonClient = createClient(url, anon)
+    }
+    return cachedAnonClient
   }
-  return cachedClient
 }
 
 export function ensureSupabaseConfigured() {

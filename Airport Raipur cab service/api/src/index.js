@@ -36,7 +36,7 @@ const PORT = process.env.PORT || 3001;
 
 // Security middleware
 const defaultDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
-defaultDirectives["script-src"] = ["'self'", "'unsafe-inline'"]; 
+defaultDirectives["script-src"] = ["'self'", "'unsafe-inline'", "https://unpkg.com"]; 
 defaultDirectives["script-src-attr"] = ["'self'", "'unsafe-inline'"];
 defaultDirectives["style-src"] = ["'self'", "https:", "'unsafe-inline'"];
 defaultDirectives["img-src"] = ["'self'", "data:", "https:"];
@@ -90,6 +90,67 @@ app.get('/', (req, res) => {
       });
     }
   });
+});
+
+// Supabase branding logo bootstrap & serving
+async function ensureBrandingLogo() {
+  const client = getSupabaseClient(true);
+  if (!client) return;
+  try {
+    const { data: buckets } = await client.storage.listBuckets();
+    const hasBucket = Array.isArray(buckets) && buckets.some(b => b.name === 'branding');
+    if (!hasBucket) {
+      await client.storage.createBucket('branding', { public: true, fileSizeLimit: '2MB' });
+    }
+    const { data: files } = await client.storage.from('branding').list('', { limit: 100 });
+    const hasLogo = Array.isArray(files) && files.some(f => f.name === 'logo.svg');
+    if (!hasLogo) {
+      const svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 240 80'><defs><linearGradient id='g1' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='#22c55e'/><stop offset='1' stop-color='#0ea5e9'/></linearGradient><linearGradient id='g2' x1='0' y1='0' x2='1' y2='0'><stop offset='0' stop-color='#06b6d4'/><stop offset='1' stop-color='#1e40af'/></linearGradient></defs><text x='20' y='50' font-family='Inter,Segoe UI,Arial,sans-serif' font-weight='800' font-size='40' fill='url(#g1)'>CG</text><text x='95' y='50' font-family='Inter,Segoe UI,Arial,sans-serif' font-weight='800' font-size='40' fill='url(#g2)'>cabz</text><path d='M20 60 C60 40 100 70 140 50 C170 40 200 55 220 45 L220 68 L20 68 Z' fill='url(#g2)' opacity='0.85'/><path d='M20 64 C60 48 100 72 140 56 C170 48 200 60 220 52' stroke='url(#g1)' stroke-width='4' fill='none' opacity='0.9'/></svg>";
+      await client.storage.from('branding').upload('logo.svg', Buffer.from(svg, 'utf8'), { contentType: 'image/svg+xml', upsert: true });
+    }
+  } catch (e) {
+    console.error('Failed to ensure branding logo in Supabase', e);
+  }
+}
+
+app.get('/assets/logo.svg', async (req, res) => {
+  try {
+    const client = getSupabaseClient(false);
+    if (!client) return res.status(404).send('Supabase not configured');
+    const p1 = client.storage.from('branding').getPublicUrl('logo.svg');
+    const p2 = client.storage.from('branding').getPublicUrl('logo.png');
+    const url = (p1?.data?.publicUrl) || (p2?.data?.publicUrl);
+    if (url) { return res.redirect(url); }
+    return res.status(404).send('Logo not found');
+  } catch (e) {
+    console.error('Error serving Supabase logo', e);
+    res.status(500).send('Error serving logo');
+  }
+});
+
+app.post('/api/assets/logo', async (req, res) => {
+  try {
+    const client = getSupabaseClient(true);
+    if (!client) return res.status(404).json({ error: 'Supabase not configured' });
+    const { data: buckets } = await client.storage.listBuckets();
+    const hasBucket = Array.isArray(buckets) && buckets.some(b => b.name === 'branding');
+    if (!hasBucket) {
+      await client.storage.createBucket('branding', { public: true, fileSizeLimit: '4MB' });
+    }
+    const { filename = 'logo.png', data: payload } = req.body || {};
+    if (!payload) return res.status(400).json({ error: 'Missing image data (base64 or data URL)' });
+    let base64 = payload;
+    let contentType = 'image/png';
+    const m = /^data:(.+);base64,(.*)$/i.exec(base64);
+    if (m) { contentType = m[1]; base64 = m[2]; }
+    const buffer = Buffer.from(base64, 'base64');
+    await client.storage.from('branding').upload(filename, buffer, { contentType, upsert: true });
+    const { data } = client.storage.from('branding').getPublicUrl(filename);
+    return res.json({ publicUrl: data?.publicUrl, path: filename });
+  } catch (e) {
+    console.error('Upload logo error', e);
+    res.status(500).json({ error: 'Failed to upload logo' });
+  }
 });
 
 // Health check endpoint
@@ -218,6 +279,7 @@ app.listen(PORT, () => {
   console.log(`🚀 Airport Booking Backend running on port ${PORT}`);
   console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  ensureBrandingLogo();
   if (supabaseOnly) {
     const client = getSupabaseClient(true)
     if (!client) {

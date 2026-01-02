@@ -3,6 +3,23 @@ export default {
     try {
       const url = new URL(request.url);
       const json = (data, status = 200, extraHeaders) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...(extraHeaders || {}) } });
+      if (url.pathname === '/assets/logo.svg') {
+        const sbBase = (env.SUPABASE_URL || '').trim();
+        if (sbBase) {
+          const base = sbBase.replace(/\/$/, '');
+          const svg = base + '/storage/v1/object/public/branding/logo.svg';
+          const png = base + '/storage/v1/object/public/branding/logo.png';
+          try {
+            const r = await fetch(svg, { method: 'HEAD' });
+            if (r && r.ok) return Response.redirect(svg, 302);
+          } catch (_) {}
+          try {
+            const r2 = await fetch(png, { method: 'HEAD' });
+            if (r2 && r2.ok) return Response.redirect(png, 302);
+          } catch (_) {}
+        }
+        return new Response('Logo not found', { status: 404 });
+      }
       if (url.pathname.startsWith('/api/')) {
         const proxyBase = (env.API_BASE_URL || '').trim();
         const sbBase = (env.SUPABASE_URL || '').trim();
