@@ -117,6 +117,7 @@ CREATE POLICY "allow read vehicles" ON public.vehicles FOR SELECT TO public USIN
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_id text;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_name text;
 ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS vehicle_rate numeric;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS exact_pickup_time text;
 -- Promo codes
 create table if not exists public.promos (
   id text primary key,

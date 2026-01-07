@@ -728,6 +728,17 @@ window.AirportBookingSystem = window.AirportBookingSystem || class AirportBookin
             const pickupLocation = tripEnum === 'HOME_TO_AIRPORT' ? userAddress : 'Airport';
             const dropoffLocation = tripEnum === 'HOME_TO_AIRPORT' ? 'Airport' : userAddress;
 
+            const hRaw = document.getElementById('manualHour')?.value;
+            const mRaw = document.getElementById('manualMinute')?.value;
+            const apRaw = document.getElementById('manualAmPm')?.value;
+            const h = parseInt(hRaw || '', 10);
+            const m = parseInt(mRaw || '', 10);
+            const ap = String(apRaw || '').toUpperCase();
+            let exactPickupTime = null;
+            if (isFinite(h) && h >= 1 && h <= 12 && isFinite(m) && m >= 0 && m <= 59 && (ap === 'AM' || ap === 'PM')) {
+                exactPickupTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`;
+            }
+
             const payload = {
                 name: this.bookingData.customerName,
                 phone: this.bookingData.phoneNumber,
@@ -737,8 +748,9 @@ window.AirportBookingSystem = window.AirportBookingSystem || class AirportBookin
                 pickupTime: this.bookingData.timeSlot,
                 tripType: tripEnum,
                 price: this.calculateAmount(),
-                notes: ''
+                notes: exactPickupTime ? `Exact pickup time: ${exactPickupTime}` : ''
             };
+            if (exactPickupTime) payload.exactPickupTime = exactPickupTime;
             if (this.bookingData.vehicleId) payload.vehicleId = this.bookingData.vehicleId;
             if (this.bookingData.vehicleName) payload.vehicleName = this.bookingData.vehicleName;
             if (this.bookingData.vehicleRate) payload.vehicleRate = this.bookingData.vehicleRate;

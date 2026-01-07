@@ -1,4 +1,5 @@
 function extractCoords(loc){ var s=String(loc||'').trim(); if(!s) return ''; if(/^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(s)){ var p=s.split(','); var la=parseFloat(p[0]); var ln=parseFloat(p[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } if(/^https?:\/\//i.test(s)){ try{ var u=new URL(s); var q=u.searchParams.get('q'); if(q && /^-?\d+(?:\.\d+)?,\s*-?\d+(?:\.\d+)?$/.test(q)){ var pr=q.split(','); var la=parseFloat(pr[0]); var ln=parseFloat(pr[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } }catch(_){ } var at=s.indexOf('@'); if(at>0){ var seg=s.substring(at+1).split(/[\?\s]/)[0]; var parts=seg.split(','); if(parts.length>=2){ var la=parseFloat(parts[0]); var ln=parseFloat(parts[1]); if(isFinite(la)&&isFinite(ln)) return la.toFixed(6)+','+ln.toFixed(6); } } } return s; }
+function extractExactTime(notes){ var s=String(notes||''); var m=s.match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i); return m? m[1].toUpperCase() : ''; }
 // Admin Panel JavaScript
 class AdminPanel {
     constructor() {
@@ -262,6 +263,7 @@ class AdminPanel {
                 phoneNumber: b.phone || b.phoneNumber || '',
                 date: b.pickupDate || b.pickup_date || '',
                 timeSlot: b.pickupTime || b.pickup_time || b.timeSlot || '',
+                exactTime: b.exactPickupTime || b.exact_pickup_time || extractExactTime(b.notes),
                 tripType: String(b.tripType || b.trip_type || '').toUpperCase(),
                 pickupLocation: b.pickupLocation || b.pickup_location || '',
                 dropoffLocation: b.dropoffLocation || b.dropoff_location || '',
@@ -399,6 +401,7 @@ class AdminPanel {
             tbody.innerHTML = upcomingBookings.map(b => {
                 const dateText = b.date ? new Date(b.date).toLocaleDateString() : '';
                 const timeText = b.timeSlot || '';
+                const exactText = b.exactTime || '';
                 const tripUpper = String(b.tripType||'').toUpperCase();
                 const locText = extractCoords(tripUpper==='AIRPORT_TO_HOME' ? (b.dropoffLocation||'') : (b.pickupLocation||''));
                 const status = (b.status || '').toLowerCase();
@@ -408,6 +411,7 @@ class AdminPanel {
                     <td>${b.customerName}</td>
                     <td>${dateText}</td>
                     <td>${timeText}</td>
+                    <td>${exactText}</td>
                     <td>${locText}</td>
                     <td>${b.tripType}</td>
                     <td>
@@ -415,7 +419,7 @@ class AdminPanel {
                     </td>
                     <td>₹${b.amount}</td>
                     <td>
-                        <button class="btn btn-sm btn-primary view-booking" data-id="${b.id}" title="View booking for ${dateText} ${timeText}">View</button>
+                        <button class="btn btn-sm btn-primary view-booking" data-id="${b.id}" title="View booking for ${dateText} ${timeText}${exactText? ' ('+exactText+')' : ''}">View</button>
                     </td>
                 </tr>`
             }).join('');
@@ -479,6 +483,7 @@ class AdminPanel {
                     ? new Date(b.date).toLocaleDateString()
                     : (b.pickup_date ? new Date(b.pickup_date).toLocaleDateString() : '');
                 const timeText = b.timeSlot || b.pickup_time || b.pickupTime || '';
+                const exactText = b.exactTime || '';
                 const tripUpper = String(b.tripType || '').toUpperCase();
                 const customerLoc = tripUpper==='AIRPORT_TO_HOME' ? (b.dropoffLocation || '') : (b.pickupLocation || '');
                 return `
@@ -487,6 +492,7 @@ class AdminPanel {
                     <td>${b.name || b.customerName || ''}</td>
                     <td>${dateText}</td>
                     <td>${timeText}</td>
+                    <td>${exactText}</td>
                     <td>${(b.tripType || '').replace('_',' ')}</td>
                     <td>${extractCoords(customerLoc)}</td>
                     <td>${b.flightNumber || b.flight_number || ''}</td>
@@ -498,9 +504,9 @@ class AdminPanel {
                     <td>₹${Number(b.price || b.amount || 0)}</td>
                     <td>
                         <div class="action-buttons">
-                            <button class="btn btn-sm btn-primary view-booking" data-id="${b.id}" title="View booking for ${dateText} ${timeText}" onclick="adminPanel && adminPanel.viewBooking('${b.id}')">View</button>
-                            <button class="btn btn-sm btn-warning edit-booking" data-id="${b.id}" title="Edit booking for ${dateText} ${timeText}" onclick="adminPanel && adminPanel.editBooking('${b.id}')">Edit</button>
-                            ${status === 'pending' ? `<button class="btn btn-sm btn-success confirm-booking" data-id="${b.id}" title="Confirm booking for ${dateText} ${timeText}" onclick="adminPanel && adminPanel.confirmBooking('${b.id}')">Confirm</button>` : ''}
+                            <button class="btn btn-sm btn-primary view-booking" data-id="${b.id}" title="View booking for ${dateText} ${timeText}${exactText? ' ('+exactText+')' : ''}" onclick="adminPanel && adminPanel.viewBooking('${b.id}')">View</button>
+                            <button class="btn btn-sm btn-warning edit-booking" data-id="${b.id}" title="Edit booking for ${dateText} ${timeText}${exactText? ' ('+exactText+')' : ''}" onclick="adminPanel && adminPanel.editBooking('${b.id}')">Edit</button>
+                            ${status === 'pending' ? `<button class="btn btn-sm btn-success confirm-booking" data-id="${b.id}" title="Confirm booking for ${dateText} ${timeText}${exactText? ' ('+exactText+')' : ''}" onclick="adminPanel && adminPanel.confirmBooking('${b.id}')">Confirm</button>` : ''}
                             ${status !== 'cancelled' ? `<button class="btn btn-sm btn-danger cancel-booking" data-id="${b.id}" onclick="adminPanel && adminPanel.cancelBooking('${b.id}')">Cancel</button>` : ''}
                         </div>
                     </td>
