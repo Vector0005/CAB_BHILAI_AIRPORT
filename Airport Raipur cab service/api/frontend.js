@@ -1,5 +1,5 @@
 // Enhanced Frontend Script with Backend API Integration
-class AirportBookingSystem {
+window.AirportBookingSystem = window.AirportBookingSystem || class AirportBookingSystem {
     constructor() {
         this.API_BASE_URL = `${window.location.origin}/api`;
         this.currentDate = new Date();
@@ -848,7 +848,8 @@ class AirportBookingSystem {
             bookButton.textContent = 'Book Ride';
         }
     }
-}
+};
+var AirportBookingSystem = window.AirportBookingSystem;
 
 // Initialize once, whether DOM is already loaded or not
 if (!window.__AirportBookingSystemInit) {

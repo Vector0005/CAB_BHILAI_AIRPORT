@@ -1,5 +1,5 @@
 // Enhanced Frontend Script with Backend API Integration
-class AirportBookingSystem {
+window.AirportBookingSystem = window.AirportBookingSystem || class AirportBookingSystem {
     constructor() {
         this.API_BASE_URL = `${window.location.origin}/api`;
         this.currentDate = new Date();
