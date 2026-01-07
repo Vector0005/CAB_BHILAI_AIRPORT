@@ -331,6 +331,15 @@ export default {
       const name = document.getElementById('name')?.value || '';
       const phone = document.getElementById('phone')?.value || '';
       const pickupTime = document.querySelector('.time-tab.active')?.getAttribute('data-time') || '';
+      const mh = (document.getElementById('manualHour')?.value||'').trim();
+      const mm = (document.getElementById('manualMinute')?.value||'').trim();
+      const ap = (document.getElementById('manualAmPm')?.value||'').trim().toUpperCase();
+      let exactTime = '';
+      if (mh && mm && (ap==='AM' || ap==='PM')) {
+        const h = Math.max(1, Math.min(12, Number(mh)));
+        const m = Math.max(0, Math.min(59, Number(mm)));
+        exactTime = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ' ' + ap;
+      }
       const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
       const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
       const locInput = (document.getElementById('location')?.value || '').trim();
@@ -355,7 +364,8 @@ export default {
         vehicleId: sel.id || null, 
         vehicleName: sel.name || null, 
         vehicleRate: baseRate, 
-        price: finalRate 
+        price: finalRate,
+        notes: (exactTime ? ('Exact Pickup Time: ' + exactTime) : '')
       };
       try {
         const r = await fetch(api('/api/bookings'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

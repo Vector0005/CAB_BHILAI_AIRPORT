@@ -507,6 +507,12 @@ body {
     margin-top: 4px;
 }
 
+.time-input-row { display: flex; align-items: center; gap: 8px; }
+.time-input-row input[type="number"] { width: 64px; text-align: center; }
+.time-input-row .colon { font-weight: 700; color: #334155; }
+.time-input-row select { height: 44px; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 10px; background: #fff; font-weight: 700; }
+.help-text { font-size: 12px; color: #64748b; margin-top: 6px; }
+
 /* Selected Date Display */
 .selected-date-display {
     background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
