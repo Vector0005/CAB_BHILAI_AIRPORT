@@ -120,7 +120,9 @@ export default {
           return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
         }
         if (pathname === '/api/logo.js' && method === 'GET') {
-          const js = 'window.APP_LOGO_URL=' + JSON.stringify(String(env.LOGO_PUBLIC_URL||'')) + ';';
+          const override = String(url.searchParams.get('u')||'').trim();
+          const direct = override || String(env.LOGO_PUBLIC_URL||'');
+          const js = 'window.APP_LOGO_URL=' + JSON.stringify(direct) + ';try{localStorage.setItem("logoPublicUrl", String(window.APP_LOGO_URL||""));}catch(_){}';
           return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
         if (pathname === '/api/admin/logo/upload' && method === 'POST') {
