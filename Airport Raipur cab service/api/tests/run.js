@@ -13,8 +13,10 @@ function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed
 
 async function main() {
   const root = process.cwd();
-  const workerPath = path.join(root, '..', 'worker.js');
-  const indexPath = path.join(root, '..', 'index.html');
+  const nestedDir = path.join(root, '..');
+  const topDir = path.join(nestedDir, '..');
+  const workerPath = path.join(topDir, 'worker.js');
+  const indexPath = path.join(nestedDir, 'index.html');
   const workerSrc = fs.readFileSync(workerPath, 'utf-8');
   const js = extractFrontendJs(workerSrc);
   const html = fs.readFileSync(indexPath, 'utf-8');
