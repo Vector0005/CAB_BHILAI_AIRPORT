@@ -575,6 +575,8 @@ export default {
             }
           }
           const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
+          if (body?.notes) { payload.notes = String(body.notes); }
+          if (body?.exactPickupTime || body?.exact_pickup_time) { payload.exact_pickup_time = body.exactPickupTime || body.exact_pickup_time; }
           const r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
           // Update availability slot for the booking date
           try {
