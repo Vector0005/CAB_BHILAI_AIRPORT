@@ -6,7 +6,14 @@ export default {
       if (url.pathname === '/assets/logo.svg') {
         const direct = (env.LOGO_PUBLIC_URL || '').trim();
         if (direct) {
-          try { const r0 = await fetch(direct, { method: 'HEAD' }); if (r0 && r0.ok) return Response.redirect(direct, 302); } catch (_) {}
+          try {
+            const r0 = await fetch(direct, { method: 'HEAD' });
+            if (r0 && r0.ok) return Response.redirect(direct, 302);
+          } catch (_) {}
+          try {
+            const r0g = await fetch(direct, { method: 'GET' });
+            if (r0g && r0g.ok) return Response.redirect(direct, 302);
+          } catch (_) {}
         }
         const sbBase = (env.SUPABASE_URL || '').trim();
         if (sbBase) {
@@ -18,8 +25,16 @@ export default {
             if (r && r.ok) return Response.redirect(svg, 302);
           } catch (_) {}
           try {
+            const rg = await fetch(svg, { method: 'GET' });
+            if (rg && rg.ok) return Response.redirect(svg, 302);
+          } catch (_) {}
+          try {
             const r2 = await fetch(png, { method: 'HEAD' });
             if (r2 && r2.ok) return Response.redirect(png, 302);
+          } catch (_) {}
+          try {
+            const r2g = await fetch(png, { method: 'GET' });
+            if (r2g && r2g.ok) return Response.redirect(png, 302);
           } catch (_) {}
         }
         return new Response('Logo not found', { status: 404 });
