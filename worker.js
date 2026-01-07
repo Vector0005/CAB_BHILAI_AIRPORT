@@ -18,6 +18,17 @@ export default {
           headers.set('apikey', key);
           headers.set('Authorization', 'Bearer ' + key);
           if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
+          try {
+            const m = String((init && init.method) || 'GET').toUpperCase();
+            if (/^\/bookings(\?.*)?$/i.test(String(path||'')) && m === 'POST' && init && init.body) {
+              const obj = JSON.parse(init.body);
+              if (!obj.notes) {
+                const ext = obj.exact_pickup_time || obj.exactPickupTime || '';
+                obj.notes = ext ? ('Exact Pickup Time: ' + ext) : '';
+                init.body = JSON.stringify(obj);
+              }
+            }
+          } catch (_) {}
           const resp = await fetch(u, { ...init, headers });
           const body = await resp.text();
           const h = {};
