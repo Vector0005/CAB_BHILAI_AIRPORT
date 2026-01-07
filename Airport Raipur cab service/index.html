@@ -101,6 +101,28 @@
                         </div>
 
                         <div class="form-group">
+                            <label>Exact Pickup Time (optional)</label>
+                            <div class="time-input-row">
+                                <input type="number" id="manualHour" min="1" max="12" placeholder="HH" aria-label="Hour" inputmode="numeric" pattern="[0-9]*">
+                                <span class="colon">:</span>
+                                <input type="number" id="manualMinute" min="0" max="59" placeholder="MM" aria-label="Minute" inputmode="numeric" pattern="[0-9]*">
+                                <div class="ampm-select">
+                                    <button type="button" id="ampmDropdown" class="dropdown-button" aria-haspopup="listbox" aria-expanded="false">AM</button>
+                                    <div id="ampmMenu" class="dropdown-menu hidden" role="listbox" aria-labelledby="ampmDropdown">
+                                        <div class="dropdown-item" data-value="AM">AM</div>
+                                        <div class="dropdown-item" data-value="PM">PM</div>
+                                    </div>
+                                </div>
+                                <select id="manualAmPm" aria-label="AM or PM" style="display:none">
+                                    <option value="AM" selected>AM</option>
+                                    <option value="PM">PM</option>
+                                </select>
+                                <script>(function(){var b=document.getElementById('ampmDropdown'),m=document.getElementById('ampmMenu'),s=document.getElementById('manualAmPm');if(!b||!m||!s)return;if(!b.__init){b.__init=true;s.value=s.value||'AM';b.textContent=s.value;b.addEventListener('click',function(){var o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));m.classList.toggle('hidden');});m.querySelectorAll('.dropdown-item').forEach(function(it){it.addEventListener('click',function(){var v=(it.getAttribute('data-value')||'AM').toUpperCase();s.value=v;b.textContent=v;m.classList.add('hidden');b.setAttribute('aria-expanded','false');});});document.addEventListener('click',function(ev){var t=ev.target;if(!b.contains(t)&&!m.contains(t)){m.classList.add('hidden');b.setAttribute('aria-expanded','false');}});}})();</script>
+                            </div>
+                            <div class="help-text">Specify an exact pickup time (e.g., 08:30 AM). Slots still apply.</div>
+                        </div>
+
+                        <div class="form-group">
                             <label>Trip Direction</label>
                             <div class="trip-type-buttons">
                                 <label class="radio-button">
@@ -197,6 +219,7 @@
 
     <!-- Hidden Admin Access Element -->
     <div id="adminAccess" class="admin-access-hidden" style="position: fixed; top: 0; left: 0; width: 10px; height: 10px; cursor: pointer; z-index: 9999;" title="Admin Access (Triple-click or Ctrl+Shift+A)"></div>
+    <script src="/api/frontend.js"></script>
     
     <script src="/script-backend.js"></script>
     <script>

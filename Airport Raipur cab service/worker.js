@@ -198,41 +198,20 @@ export default {
     const last = new Date(year, month + 1, 0);
     const startIso = new Date(year, month, 1); startIso.setHours(0,0,0,0);
     const endIso = new Date(year, month + 1, 0); endIso.setHours(23,59,59,999);
-    fetch(api('/api/availability?startDate=' + startIso.toISOString() + '&endDate=' + endIso.toISOString()))
-      .then(r => r.ok ? r.json() : [])
-      .then(rows => {
-        const map = new Map();
-        (rows||[]).forEach(a => {
-          const d = new Date(a.date || a.date_time || a.dt || a.pickup_date);
-          const key = d.getFullYear()+ '-' + (d.getMonth()+1) + '-' + d.getDate();
-          map.set(key, a);
-        });
-        const offset = first.getDay();
-        for (let i=0;i<offset;i++) {
-          const ph = document.createElement('div'); ph.className='day-cell placeholder'; grid.appendChild(ph);
-        }
-        if (pathname === '/api/users/login' && method === 'POST') {
-          const body = await readBody();
-          const email = String(body?.email||'').trim().toLowerCase();
-          const pass = String(body?.password||'');
-          const adminEmail = String(env.ADMIN_EMAIL||'').trim().toLowerCase();
-          const adminPass = String(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD||'');
-          if (!adminEmail || !adminPass) return json({ error: 'Admin credentials not configured' }, 500);
-          if (email === adminEmail && pass === adminPass) {
-            const token = await signJWT({ userId: 'ADMIN', email: adminEmail, role: 'ADMIN' }, env.JWT_SECRET||'');
-            return json({ message: 'Login successful', user: { id: 'ADMIN', name: 'Admin', email: adminEmail, role: 'ADMIN' }, token });
-          }
-          return json({ error: 'Invalid credentials' }, 401);
-        }
-        if (pathname === '/api/users/profile' && method === 'GET') {
-          const auth = request.headers.get('authorization') || '';
-          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
-          const token = auth.substring(7);
-          const payload = await verifyJWT(token, env.JWT_SECRET||'');
-          if (!payload) return json({ error: 'Invalid token' }, 401);
-          return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
-        }
-        for (let day=1; day<=last.getDate(); day++) {
+        fetch(api('/api/availability?startDate=' + startIso.toISOString() + '&endDate=' + endIso.toISOString()))
+          .then(r => r.ok ? r.json() : [])
+          .then(rows => {
+            const map = new Map();
+            (rows||[]).forEach(a => {
+              const d = new Date(a.date || a.date_time || a.dt || a.pickup_date);
+              const key = d.getFullYear()+ '-' + (d.getMonth()+1) + '-' + d.getDate();
+              map.set(key, a);
+            });
+            const offset = first.getDay();
+            for (let i=0;i<offset;i++) {
+              const ph = document.createElement('div'); ph.className='day-cell placeholder'; grid.appendChild(ph);
+            }
+            for (let day=1; day<=last.getDate(); day++) {
           const cell = document.createElement('button');
           cell.type = 'button';
           cell.className = 'day-cell';
@@ -331,6 +310,15 @@ export default {
       const name = document.getElementById('name')?.value || '';
       const phone = document.getElementById('phone')?.value || '';
       const pickupTime = document.querySelector('.time-tab.active')?.getAttribute('data-time') || '';
+      const mh = (document.getElementById('manualHour')?.value||'').trim();
+      const mm = (document.getElementById('manualMinute')?.value||'').trim();
+      const ap = (document.getElementById('manualAmPm')?.value||'').trim().toUpperCase();
+      let exactTime = '';
+      if (mh && mm && (ap==='AM' || ap==='PM')) {
+        const h = Math.max(1, Math.min(12, Number(mh)));
+        const m = Math.max(0, Math.min(59, Number(mm)));
+        exactTime = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ' ' + ap;
+      }
       const tripRaw = (document.querySelector('input[name="tripType"]:checked')?.value || '');
       const tripType = tripRaw.toUpperCase().replace(/-/g,'_').replace(/\s+/g,'_');
       const locInput = (document.getElementById('location')?.value || '').trim();
@@ -355,7 +343,8 @@ export default {
         vehicleId: sel.id || null, 
         vehicleName: sel.name || null, 
         vehicleRate: baseRate, 
-        price: finalRate 
+        price: finalRate,
+        notes: (exactTime ? ('Exact Pickup Time: ' + exactTime) : '')
       };
       try {
         const r = await fetch(api('/api/bookings'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -367,8 +356,38 @@ export default {
       }
     });
     document.querySelectorAll('.time-tab').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.time-tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }));
+    const ampmDropdown = document.getElementById('ampmDropdown');
+    const ampmMenu = document.getElementById('ampmMenu');
+    const ampmHidden = document.getElementById('manualAmPm');
+    if (ampmDropdown && ampmMenu && ampmHidden) {
+      ampmHidden.value = ampmHidden.value || 'AM';
+      ampmDropdown.textContent = ampmHidden.value;
+      ampmDropdown.addEventListener('click', () => {
+        const isOpen = ampmDropdown.getAttribute('aria-expanded')==='true';
+        ampmDropdown.setAttribute('aria-expanded', String(!isOpen));
+        ampmMenu.classList.toggle('hidden');
+      });
+      ampmMenu.querySelectorAll('.dropdown-item').forEach(it => it.addEventListener('click', () => {
+        const val = (it.getAttribute('data-value')||'AM').toUpperCase();
+        ampmHidden.value = val;
+        ampmDropdown.textContent = val;
+        ampmMenu.classList.add('hidden');
+        ampmDropdown.setAttribute('aria-expanded','false');
+      }));
+      document.addEventListener('click', (ev) => {
+        const t = ev.target;
+        if (!ampmDropdown.contains(t) && !ampmMenu.contains(t)) {
+          ampmMenu.classList.add('hidden');
+          ampmDropdown.setAttribute('aria-expanded','false');
+        }
+      });
+    }
   }
-  document.addEventListener('DOMContentLoaded', function() { initCalendar(); initVehicles(); initBookingForm(); });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { initCalendar(); initVehicles(); initBookingForm(); });
+  } else {
+    initCalendar(); initVehicles(); initBookingForm();
+  }
 })();`;
           return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
