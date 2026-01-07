@@ -73,6 +73,17 @@ export default {
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
           return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
         }
+        if (pathname === '/api/diagnostics/schema' && method === 'GET') {
+          const r = await supabase('/bookings?select=exact_pickup_time&limit=1', { method: 'GET' }, true);
+          if (r.status === 200) return json({ exactPickupTimeColumn: true });
+          try {
+            const t = await r.text();
+            const missing = /exact_pickup_time/i.test(t) && /column/i.test(t);
+            return json({ exactPickupTimeColumn: !missing });
+          } catch (_) {
+            return json({ exactPickupTimeColumn: false });
+          }
+        }
         if (pathname === '/api/users/login' && method === 'POST') {
           const body = await readBody();
           const email = String(body?.email||'').trim().toLowerCase();
