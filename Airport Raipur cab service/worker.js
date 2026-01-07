@@ -383,7 +383,11 @@ export default {
       });
     }
   }
-  document.addEventListener('DOMContentLoaded', function() { initCalendar(); initVehicles(); initBookingForm(); });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() { initCalendar(); initVehicles(); initBookingForm(); });
+  } else {
+    initCalendar(); initVehicles(); initBookingForm();
+  }
 })();`;
           return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
         }
