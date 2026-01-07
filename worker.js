@@ -577,7 +577,27 @@ export default {
           const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
           if (body?.notes) { payload.notes = String(body.notes); }
           if (body?.exactPickupTime || body?.exact_pickup_time) { payload.exact_pickup_time = body.exactPickupTime || body.exact_pickup_time; }
+          if (body?.notes) { payload.notes = String(body.notes); }
+          if (body?.exactPickupTime || body?.exact_pickup_time) { payload.exact_pickup_time = body.exactPickupTime || body.exact_pickup_time; }
           const r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+          try {
+            const update = {};
+            if (body && body.notes) update.notes = String(body.notes);
+            const exact = body && (body.exactPickupTime || body.exact_pickup_time) ? (body.exactPickupTime || body.exact_pickup_time) : '';
+            if (exact) update.exact_pickup_time = exact;
+            if (Object.keys(update).length) {
+              let ur = await supabase('/bookings?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
+              if (ur.status !== 200) {
+                try {
+                  const t = await ur.text();
+                  if (/exact_pickup_time/i.test(t) && /column/i.test(t)) {
+                    delete update.exact_pickup_time;
+                    await supabase('/bookings?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
+                  }
+                } catch(_) {}
+              }
+            }
+          } catch(_) {}
           // Update availability slot for the booking date
           try {
             const dt = new Date(payload.pickup_date);
