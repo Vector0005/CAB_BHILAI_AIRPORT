@@ -377,6 +377,32 @@ export default {
       }
     });
     document.querySelectorAll('.time-tab').forEach(btn => btn.addEventListener('click', () => { document.querySelectorAll('.time-tab').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }));
+    const ampmDropdown = document.getElementById('ampmDropdown');
+    const ampmMenu = document.getElementById('ampmMenu');
+    const ampmHidden = document.getElementById('manualAmPm');
+    if (ampmDropdown && ampmMenu && ampmHidden) {
+      ampmHidden.value = ampmHidden.value || 'AM';
+      ampmDropdown.textContent = ampmHidden.value;
+      ampmDropdown.addEventListener('click', () => {
+        const isOpen = ampmDropdown.getAttribute('aria-expanded')==='true';
+        ampmDropdown.setAttribute('aria-expanded', String(!isOpen));
+        ampmMenu.classList.toggle('hidden');
+      });
+      ampmMenu.querySelectorAll('.dropdown-item').forEach(it => it.addEventListener('click', () => {
+        const val = (it.getAttribute('data-value')||'AM').toUpperCase();
+        ampmHidden.value = val;
+        ampmDropdown.textContent = val;
+        ampmMenu.classList.add('hidden');
+        ampmDropdown.setAttribute('aria-expanded','false');
+      }));
+      document.addEventListener('click', (ev) => {
+        const t = ev.target;
+        if (!ampmDropdown.contains(t) && !ampmMenu.contains(t)) {
+          ampmMenu.classList.add('hidden');
+          ampmDropdown.setAttribute('aria-expanded','false');
+        }
+      });
+    }
   }
   document.addEventListener('DOMContentLoaded', function() { initCalendar(); initVehicles(); initBookingForm(); });
 })();`;

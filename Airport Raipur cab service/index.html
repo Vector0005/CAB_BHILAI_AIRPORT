@@ -106,8 +106,15 @@
                                 <input type="number" id="manualHour" min="1" max="12" placeholder="HH" aria-label="Hour" inputmode="numeric" pattern="[0-9]*">
                                 <span class="colon">:</span>
                                 <input type="number" id="manualMinute" min="0" max="59" placeholder="MM" aria-label="Minute" inputmode="numeric" pattern="[0-9]*">
-                                <select id="manualAmPm" aria-label="AM or PM">
-                                    <option value="AM">AM</option>
+                                <div class="ampm-select">
+                                    <button type="button" id="ampmDropdown" class="dropdown-button" aria-haspopup="listbox" aria-expanded="false">AM</button>
+                                    <div id="ampmMenu" class="dropdown-menu hidden" role="listbox" aria-labelledby="ampmDropdown">
+                                        <div class="dropdown-item" data-value="AM">AM</div>
+                                        <div class="dropdown-item" data-value="PM">PM</div>
+                                    </div>
+                                </div>
+                                <select id="manualAmPm" aria-label="AM or PM" style="display:none">
+                                    <option value="AM" selected>AM</option>
                                     <option value="PM">PM</option>
                                 </select>
                             </div>
