@@ -3,6 +3,42 @@ export default {
     try {
       const url = new URL(request.url);
       const json = (data, status = 200, extraHeaders) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json', ...(extraHeaders || {}) } });
+      if (url.pathname === '/assets/logo.svg') {
+        const direct = (env.LOGO_PUBLIC_URL || '').trim();
+        if (direct) {
+          try {
+            const r0 = await fetch(direct, { method: 'HEAD' });
+            if (r0 && r0.ok) return Response.redirect(direct, 302);
+          } catch (_) {}
+          try {
+            const r0g = await fetch(direct, { method: 'GET' });
+            if (r0g && r0g.ok) return Response.redirect(direct, 302);
+          } catch (_) {}
+        }
+        const sbBase = (env.SUPABASE_URL || '').trim();
+        if (sbBase) {
+          const base = sbBase.replace(/\/$/, '');
+          const svg = base + '/storage/v1/object/public/branding/logo.svg';
+          const png = base + '/storage/v1/object/public/branding/logo.png';
+          try {
+            const r = await fetch(svg, { method: 'HEAD' });
+            if (r && r.ok) return Response.redirect(svg, 302);
+          } catch (_) {}
+          try {
+            const rg = await fetch(svg, { method: 'GET' });
+            if (rg && rg.ok) return Response.redirect(svg, 302);
+          } catch (_) {}
+          try {
+            const r2 = await fetch(png, { method: 'HEAD' });
+            if (r2 && r2.ok) return Response.redirect(png, 302);
+          } catch (_) {}
+          try {
+            const r2g = await fetch(png, { method: 'GET' });
+            if (r2g && r2g.ok) return Response.redirect(png, 302);
+          } catch (_) {}
+        }
+        return new Response('Logo not found', { status: 404 });
+      }
       if (url.pathname.startsWith('/api/')) {
         const proxyBase = (env.API_BASE_URL || '').trim();
         const sbBase = (env.SUPABASE_URL || '').trim();
@@ -82,6 +118,71 @@ export default {
           const payload = await verifyJWT(token, env.JWT_SECRET||'');
           if (!payload) return json({ error: 'Invalid token' }, 401);
           return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
+        }
+        if (pathname === '/api/logo.js' && method === 'GET') {
+          const override = String(url.searchParams.get('u')||'').trim();
+          const direct = override || String(env.LOGO_PUBLIC_URL||'');
+          const js = 'window.APP_LOGO_URL=' + JSON.stringify(direct) + ';try{localStorage.setItem("logoPublicUrl", String(window.APP_LOGO_URL||""));}catch(_){}';
+          return new Response(js, { status: 200, headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store, max-age=0' } });
+        }
+        if (pathname === '/api/admin/logo/upload' && method === 'POST') {
+          const auth = request.headers.get('authorization') || '';
+          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
+          const token = auth.substring(7);
+          const payload = await verifyJWT(token, env.JWT_SECRET||'');
+          if (!payload || String(payload.role||'').toUpperCase() !== 'ADMIN') return json({ error: 'Invalid token' }, 401);
+          const body = await readBody();
+          const sourceUrl = String(body?.logoPublicUrl || body?.url || '').trim();
+          const dataUri = String(body?.data || '').trim();
+          const sbBase2 = (env.SUPABASE_URL || '').trim();
+          const serviceKey2 = (env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+          if (!sbBase2 || !serviceKey2) return json({ error: 'Supabase not configured' }, 500);
+          let contentType = 'image/svg+xml';
+          let bytes = null;
+          let name = 'logo.svg';
+          if (sourceUrl) {
+            const r = await fetch(sourceUrl);
+            if (!r.ok) return json({ error: 'Failed to fetch logo source' }, 400);
+            const ct = r.headers.get('content-type') || '';
+            contentType = ct || contentType;
+            const ab = await r.arrayBuffer();
+            bytes = new Uint8Array(ab);
+            name = /svg/i.test(contentType) ? 'logo.svg' : (/png/i.test(contentType) ? 'logo.png' : 'logo.bin');
+          } else if (dataUri) {
+            const i = dataUri.indexOf(',');
+            const head = i >= 0 ? dataUri.slice(0, i) : '';
+            let payloadStr = i >= 0 ? dataUri.slice(i + 1) : dataUri;
+            const m = head.match(/^data:([^;]+)(;base64)?/i);
+            if (m) {
+              contentType = m[1] || contentType;
+              const isB64 = !!m[2];
+              if (isB64) {
+                const bin = atob(payloadStr);
+                const arr = new Uint8Array(bin.length);
+                for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j);
+                bytes = arr;
+              } else {
+                payloadStr = decodeURIComponent(payloadStr);
+                bytes = new TextEncoder().encode(payloadStr);
+              }
+            } else {
+              bytes = new TextEncoder().encode(payloadStr);
+            }
+            name = /svg/i.test(contentType) ? 'logo.svg' : (/png/i.test(contentType) ? 'logo.png' : 'logo.bin');
+          } else {
+            return json({ error: 'No source provided' }, 400);
+          }
+          const base = sbBase2.replace(/\/$/, '');
+          const storageUrl = base + '/storage/v1/object/branding/' + name + '?upsert=true';
+          const headers = new Headers();
+          headers.set('apikey', serviceKey2);
+          headers.set('Authorization', 'Bearer ' + serviceKey2);
+          headers.set('content-type', contentType);
+          const resp = await fetch(storageUrl, { method: 'POST', headers, body: bytes });
+          const text = await resp.text();
+          if (!resp.ok) return new Response(text || 'Upload failed', { status: resp.status });
+          const publicUrl = base + '/storage/v1/object/public/branding/' + name;
+          return json({ message: 'Uploaded', name, contentType, publicUrl });
         }
         
         if (pathname === '/api/frontend.js' && method === 'GET') {

@@ -30,7 +30,8 @@ function parseDateOnly(s) {
 router.get('/', async (req, res) => {
   try {
     const { startDate, endDate, date } = req.query;
-    const client = getSupabaseClient(true)
+    const client = getSupabaseClient(false)
+    const remote = (process.env.REMOTE_WORKER_BASE || '').trim()
     if (client) {
       let query = client.from('availability').select('*')
       if (date) {
@@ -50,6 +51,15 @@ router.get('/', async (req, res) => {
         if (cErr) throw cErr
         return res.json(created)
       }
+      return res.json(data || [])
+    } else if (remote) {
+      const u = new URL(remote.replace(/\/$/, '') + '/api/availability')
+      if (date) u.searchParams.set('date', date)
+      if (startDate) u.searchParams.set('startDate', startDate)
+      if (endDate) u.searchParams.set('endDate', endDate)
+      const r = await fetch(u)
+      if (!r.ok) return res.status(500).json({ error: 'Failed to fetch remote availability' })
+      const data = await r.json().catch(() => [])
       return res.json(data || [])
     } else {
       const where = {}
@@ -73,7 +83,8 @@ router.get('/', async (req, res) => {
 // Get availability for a specific date
 router.get('/:date', async (req, res) => {
   try {
-    const client2 = getSupabaseClient(true)
+    const client2 = getSupabaseClient(false)
+    const remote = (process.env.REMOTE_WORKER_BASE || '').trim()
     if (client2) {
       const d = new Date(req.params.date); d.setHours(0,0,0,0)
       const next = new Date(d); next.setDate(next.getDate() + 1)
@@ -85,13 +96,21 @@ router.get('/:date', async (req, res) => {
         return res.json(created[0])
       }
       return res.json(data[0])
+    } else if (remote) {
+      const u = new URL(remote.replace(/\/$/, '') + '/api/availability')
+      u.searchParams.set('date', req.params.date)
+      const r = await fetch(u)
+      if (!r.ok) return res.status(500).json({ error: 'Failed to fetch remote availability' })
+      const data = await r.json().catch(() => [])
+      const row = Array.isArray(data) ? (data[0] || null) : data
+      return res.json(row || {})
     } else {
       const date = new Date(req.params.date)
       let availability = await prisma.availability.findUnique({ where: { date } })
       if (!availability) {
         availability = await prisma.availability.create({ data: { date, morningAvailable: true, eveningAvailable: true, maxBookings: 10, currentBookings: 0 } })
         try { await syncAvailabilityToSupabase(availability) } catch (e) {}
-      }
+        }
       return res.json(availability)
     }
   } catch (error) {
@@ -107,14 +126,12 @@ router.patch('/:date', async (req, res) => {
     const { morningAvailable, eveningAvailable, maxBookings, currentBookings } = req.body
     const client3 = getSupabaseClient(true)
     
-    // When making a slot available, cancel any existing bookings for that slot
-    if (morningAvailable === true || eveningAvailable === true) {
+    // When making a slot available, cancel any existing bookings for that slot (Supabase only)
+    if (client3 && (morningAvailable === true || eveningAvailable === true)) {
       const searchDate = new Date(date);
       searchDate.setHours(0, 0, 0, 0);
       const nextDate = new Date(searchDate);
       nextDate.setDate(nextDate.getDate() + 1);
-      
-      // Cancel bookings for the morning slot if it's being made available
       if (morningAvailable === true) {
         await client3.from('bookings')
           .update({ status: 'CANCELLED', payment_status: 'REFUNDED' })
@@ -123,8 +140,6 @@ router.patch('/:date', async (req, res) => {
           .eq('pickup_time', 'morning')
           .neq('status', 'COMPLETED');
       }
-      
-      // Cancel bookings for the evening slot if it's being made available
       if (eveningAvailable === true) {
         await client3.from('bookings')
           .update({ status: 'CANCELLED', payment_status: 'REFUNDED' })

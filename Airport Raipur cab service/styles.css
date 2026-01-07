@@ -22,8 +22,8 @@ body {
 .header {
     background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
     border-radius: 20px;
-    padding: 30px;
-    margin-bottom: 30px;
+    padding: 24px 28px;
+    margin-bottom: 24px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
     backdrop-filter: blur(10px);
 }
@@ -31,22 +31,47 @@ body {
 .logo {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
 }
 
 .logo-icon {
-    width: 60px;
-    height: 40px;
+    height: 128px;
+    width: auto;
     flex-shrink: 0;
+    display: block;
 }
 
 .title {
-    font-size: 28px;
-    font-weight: 700;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.15;
     background: linear-gradient(135deg, #0ea5e9 0%, #1e40af 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.instructions { 
+    margin-top: 12px; 
+    padding: 14px 16px; 
+    border-radius: 16px; 
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border: 2px solid #e5e7eb; 
+}
+.instructions-title { 
+    font-size: 16px; 
+    font-weight: 700; 
+    color: #1e293b; 
+    margin-bottom: 8px; 
+}
+.instructions-list { 
+    margin: 0; 
+    padding-left: 18px; 
+    color: #374151; 
+    font-weight: 600; 
+}
+.instructions-list li { 
+    margin-bottom: 6px; 
 }
 
 /* Main Content */
@@ -58,8 +83,8 @@ body {
 .booking-section {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 40px;
-    align-items: start;
+    gap: 32px;
+    align-items: stretch;
 }
 
 /* Calendar Styles */
@@ -69,6 +94,8 @@ body {
     padding: 30px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
     backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
 }
 
 .calendar-header {
@@ -294,6 +321,8 @@ body {
     padding: 30px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
     backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
 }
 .booking-form-container #vehicleRateDisplay { font-weight: 700; font-size: 18px; }
 .rate-original { color: #6b7280; text-decoration: line-through; margin-right: 6px; }

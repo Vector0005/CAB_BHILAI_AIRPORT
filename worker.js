@@ -83,6 +83,65 @@ export default {
           if (!payload) return json({ error: 'Invalid token' }, 401);
           return json({ user: { id: payload.userId, email: payload.email, role: payload.role } });
         }
+        if (pathname === '/api/admin/logo/upload' && method === 'POST') {
+          const auth = request.headers.get('authorization') || '';
+          if (!auth.startsWith('Bearer ')) return json({ error: 'No token provided' }, 401);
+          const token = auth.substring(7);
+          const payload = await verifyJWT(token, env.JWT_SECRET||'');
+          if (!payload || String(payload.role||'').toUpperCase() !== 'ADMIN') return json({ error: 'Invalid token' }, 401);
+          const body = await readBody();
+          const sourceUrl = String(body?.logoPublicUrl || body?.url || '').trim();
+          const dataUri = String(body?.data || '').trim();
+          const sbBase2 = (env.SUPABASE_URL || '').trim();
+          const serviceKey2 = (env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+          if (!sbBase2 || !serviceKey2) return json({ error: 'Supabase not configured' }, 500);
+          let contentType = 'image/svg+xml';
+          let bytes = null;
+          let name = 'logo.svg';
+          if (sourceUrl) {
+            const r = await fetch(sourceUrl);
+            if (!r.ok) return json({ error: 'Failed to fetch logo source' }, 400);
+            const ct = r.headers.get('content-type') || '';
+            contentType = ct || contentType;
+            const ab = await r.arrayBuffer();
+            bytes = new Uint8Array(ab);
+            name = /svg/i.test(contentType) ? 'logo.svg' : (/png/i.test(contentType) ? 'logo.png' : 'logo.bin');
+          } else if (dataUri) {
+            const i = dataUri.indexOf(',');
+            const head = i >= 0 ? dataUri.slice(0, i) : '';
+            let payloadStr = i >= 0 ? dataUri.slice(i + 1) : dataUri;
+            const m = head.match(/^data:([^;]+)(;base64)?/i);
+            if (m) {
+              contentType = m[1] || contentType;
+              const isB64 = !!m[2];
+              if (isB64) {
+                const bin = atob(payloadStr);
+                const arr = new Uint8Array(bin.length);
+                for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j);
+                bytes = arr;
+              } else {
+                payloadStr = decodeURIComponent(payloadStr);
+                bytes = new TextEncoder().encode(payloadStr);
+              }
+            } else {
+              bytes = new TextEncoder().encode(payloadStr);
+            }
+            name = /svg/i.test(contentType) ? 'logo.svg' : (/png/i.test(contentType) ? 'logo.png' : 'logo.bin');
+          } else {
+            return json({ error: 'No source provided' }, 400);
+          }
+          const base = sbBase2.replace(/\/$/, '');
+          const storageUrl = base + '/storage/v1/object/branding/' + name + '?upsert=true';
+          const headers = new Headers();
+          headers.set('apikey', serviceKey2);
+          headers.set('Authorization', 'Bearer ' + serviceKey2);
+          headers.set('content-type', contentType);
+          const resp = await fetch(storageUrl, { method: 'POST', headers, body: bytes });
+          const text = await resp.text();
+          if (!resp.ok) return new Response(text || 'Upload failed', { status: resp.status });
+          const publicUrl = base + '/storage/v1/object/public/branding/' + name;
+          return json({ message: 'Uploaded', name, contentType, publicUrl });
+        }
         
         if (pathname === '/api/frontend.js' && method === 'GET') {
           const js = `(() => {

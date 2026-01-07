@@ -3,7 +3,7 @@ import { jest } from '@jest/globals'
 import https from 'node:https'
 import http from 'node:http'
 
-const REMOTE_BASE = 'https://feature-optional-address-location-tests-cab-airport-raipur.viraj-nagpure.workers.dev'
+const REMOTE_BASE = 'https://feature-optional-address-location-tests-v2-cab-airport-raipur.viraj-nagpure.workers.dev'
 
 function fetchText(url) {
   return new Promise((resolve, reject) => {
