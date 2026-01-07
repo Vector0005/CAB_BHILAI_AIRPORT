@@ -117,6 +117,7 @@
                                     <option value="AM" selected>AM</option>
                                     <option value="PM">PM</option>
                                 </select>
+                                <script>(function(){var b=document.getElementById('ampmDropdown'),m=document.getElementById('ampmMenu'),s=document.getElementById('manualAmPm');if(!b||!m||!s)return;if(!b.__init){b.__init=true;s.value=s.value||'AM';b.textContent=s.value;b.addEventListener('click',function(){var o=b.getAttribute('aria-expanded')==='true';b.setAttribute('aria-expanded',String(!o));m.classList.toggle('hidden');});m.querySelectorAll('.dropdown-item').forEach(function(it){it.addEventListener('click',function(){var v=(it.getAttribute('data-value')||'AM').toUpperCase();s.value=v;b.textContent=v;m.classList.add('hidden');b.setAttribute('aria-expanded','false');});});document.addEventListener('click',function(ev){var t=ev.target;if(!b.contains(t)&&!m.contains(t)){m.classList.add('hidden');b.setAttribute('aria-expanded','false');}});}})();</script>
                             </div>
                             <div class="help-text">Specify an exact pickup time (e.g., 08:30 AM). Slots still apply.</div>
                         </div>
