@@ -103,9 +103,9 @@
                         <div class="form-group">
                             <label>Exact Pickup Time (optional)</label>
                             <div class="time-input-row">
-                                <input type="number" id="manualHour" min="1" max="12" placeholder="HH" aria-label="Hour">
+                                <input type="number" id="manualHour" min="1" max="12" placeholder="HH" aria-label="Hour" inputmode="numeric" pattern="[0-9]*">
                                 <span class="colon">:</span>
-                                <input type="number" id="manualMinute" min="0" max="59" placeholder="MM" aria-label="Minute">
+                                <input type="number" id="manualMinute" min="0" max="59" placeholder="MM" aria-label="Minute" inputmode="numeric" pattern="[0-9]*">
                                 <select id="manualAmPm" aria-label="AM or PM">
                                     <option value="AM">AM</option>
                                     <option value="PM">PM</option>

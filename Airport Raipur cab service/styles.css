@@ -507,11 +507,23 @@ body {
     margin-top: 4px;
 }
 
-.time-input-row { display: flex; align-items: center; gap: 8px; }
-.time-input-row input[type="number"] { width: 64px; text-align: center; }
-.time-input-row .colon { font-weight: 700; color: #334155; }
-.time-input-row select { height: 44px; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 10px; background: #fff; font-weight: 700; }
+.time-input-row { display: flex; align-items: center; gap: 10px; }
+.time-input-row input[type="number"] { width: 96px; height: 44px; text-align: center; font-size: 18px; border: 2px solid #e5e7eb; border-radius: 12px; padding: 10px 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+.time-input-row input[type="number"]::placeholder { color: #94a3b8; }
+.time-input-row input[type="number"]::-webkit-outer-spin-button,
+.time-input-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.time-input-row input[type="number"] { -moz-appearance: textfield; }
+.time-input-row input[type="number"]:hover { border-color: #cbd5e1; }
+.time-input-row input[type="number"]:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
+.time-input-row .colon { font-weight: 800; color: #334155; font-size: 20px; }
+.time-input-row select { height: 44px; padding: 10px 12px; border: 2px solid #e5e7eb; border-radius: 12px; background: #fff; font-weight: 700; font-size: 16px; appearance: none; -webkit-appearance: none; -moz-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 14px 14px; padding-right: 36px; box-shadow: 0 2px 10px rgba(0,0,0,0.04); }
+.time-input-row select:hover { border-color: #cbd5e1; }
+.time-input-row select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15); }
 .help-text { font-size: 12px; color: #64748b; margin-top: 6px; }
+
+@media (max-width: 768px) {
+  .time-input-row input[type="number"] { width: 80px; font-size: 16px; }
+}
 
 /* Selected Date Display */
 .selected-date-display {
