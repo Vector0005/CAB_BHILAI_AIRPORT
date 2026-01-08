@@ -1238,6 +1238,13 @@
         });
             let bookingData = [];
             let isLoadingData = false;
+            function getExactPickupText(b, fb){
+                var t1=(b&&(b.exact_pickup_time||(((b.notes||'').match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i)||[])[1])))||'';
+                if(t1) return t1;
+                var f=fb||null;
+                if(!f) return '';
+                return (f.exact_pickup_time||(((f.notes||'').match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i)||[])[1]))||'';
+            }
             async function fillDashboard(){
                 try{
                     const r=await fetch(getApiUrl('/api/admin/dashboard'));
@@ -1257,10 +1264,18 @@
                           .filter(function(b){ var dt=b.pickup_date?new Date(b.pickup_date):null; if(!dt) return false; var s=(b.status||'').toUpperCase(); if(s==='CANCELLED'||s==='COMPLETED') return false; return dt>=today; })
                           .sort(function(a,b){ return new Date(a.pickup_date)-new Date(b.pickup_date); })
                           .slice(0,5);
+                        var supp=new Map();
+                        try{
+                            const rb=await fetch(getApiUrl('/api/admin/bookings?limit=200'));
+                            if(rb.ok){
+                                const dj=await rb.json();
+                                (Array.isArray(dj)?dj:(dj.bookings||[])).forEach(function(x){ supp.set(x.id,x); });
+                            }
+                        }catch(_){ }
                         var rows=upcoming.map(function(b){
                             var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                             var timeText=b.pickup_time||'';
-                            var exactText = (b.exact_pickup_time||((b.notes||'').match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i)||[])[1]||'');
+                            var exactText = getExactPickupText(b, supp.get(b.id));
                             var trip=(b.trip_type||b.tripType||'').toUpperCase();
                             var loc = trip==='AIRPORT_TO_HOME' ? (b.dropoff_location||b.dropoffLocation||'') : (b.pickup_location||b.pickupLocation||'');
                             var status=(b.status||'').toLowerCase();
@@ -1300,7 +1315,7 @@
                             var rows=upcoming.map(function(b){
                                 var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                                 var timeText=b.pickup_time||'';
-                                var exactText = (b.exact_pickup_time||((b.notes||'').match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i)||[])[1]||'');
+                                var exactText = getExactPickupText(b, null);
                                 var trip=(b.trip_type||b.tripType||'').toUpperCase();
                                 var loc = trip==='AIRPORT_TO_HOME' ? (b.dropoff_location||b.dropoffLocation||'') : (b.pickup_location||b.pickupLocation||'');
                                 var status=(b.status||'').toLowerCase();
@@ -1337,6 +1352,7 @@
                             timeSlot: b.pickupTime||b.pickup_time||b.timeSlot||'',
                             tripType: (b.tripType||b.trip_type||''),
                             pickupLocation: b.pickupLocation||b.pickup_location||'',
+                            vehicle: b.vehicle||b.vehicleType||b.vehicle_name||b.vehicleName||'',
                             flightNumber: b.flight_number||b.flightNumber||'',
                             amount: Number(b.price||b.amount||0),
                             status: (b.status||'').toLowerCase(),
@@ -1371,6 +1387,7 @@
                             timeSlot: b.pickupTime||b.pickup_time||b.timeSlot||'',
                             tripType: (b.tripType||b.trip_type||''),
                             pickupLocation: b.pickupLocation||b.pickup_location||'',
+                            vehicle: b.vehicle||b.vehicleType||b.vehicle_name||b.vehicleName||'',
                             flightNumber: b.flight_number||b.flightNumber||'',
                             amount: Number(b.price||b.amount||0),
                             status: (b.status||'').toLowerCase(),
@@ -1887,13 +1904,13 @@
             tbody.innerHTML = data.map(booking => {
                 const bookingId = booking.id || '';
                 const customerName = booking.name || booking.customerName || '';
-                const contactNumber = booking.phone || booking.phoneNumber || '';
+                const contactNumber = booking.phone || booking.phoneNumber || booking.contact_number || booking.contactNumber || '';
                 const tripUpper = (booking.trip_type || booking.tripType || '').toUpperCase();
                 const customerLocation = tripUpper==='AIRPORT_TO_HOME' ? (booking.dropoff_location || booking.dropoffLocation || '') : (booking.pickup_location || booking.pickupLocation || '');
                 const pickupDate = booking.pickup_date || booking.pickupDate || '';
                 const timeSlot = booking.pickup_time || booking.pickupTime || booking.timeSlot || '';
                 const tripType = (booking.trip_type || booking.tripType || '').replace('_', ' ');
-                const vehicle = booking.vehicle || '';
+                const vehicle = booking.vehicle || booking.vehicleType || booking.vehicle_name || booking.vehicleName || '';
                 const flightNumber = booking.flight_number || booking.flightNumber || '';
                 const amount = Number(booking.price || booking.amount || 0);
                 const status = (booking.status || '').toLowerCase();
@@ -1931,12 +1948,12 @@
                 ...filteredData.map(booking => [
                     booking.id || '',
                     `"${(booking.name || booking.customerName || '').replace(/"/g, '""')}"`,
-                    `"${(booking.phone || booking.phoneNumber || '').replace(/"/g, '""')}"`,
+                    `"${(booking.phone || booking.phoneNumber || booking.contact_number || booking.contactNumber || '').replace(/"/g, '""')}"`,
                     (function(){ var t=(booking.trip_type||booking.tripType||'').toUpperCase(); var loc=t==='AIRPORT_TO_HOME' ? (booking.dropoff_location||booking.dropoffLocation||'') : (booking.pickup_location||booking.pickupLocation||''); var c=extractCoords(loc); return `"${String(c).replace(/"/g,'""')}"`; })(),
                     booking.pickup_date || booking.pickupDate || '',
                     `"${(booking.pickup_time || booking.pickupTime || booking.timeSlot || '').replace(/"/g, '""')}"`,
                     `"${(booking.trip_type || booking.tripType || '').replace(/"/g, '""')}"`,
-                    `"${(booking.vehicle || '').replace(/"/g, '""')}"`,
+                    `"${(booking.vehicle || booking.vehicleType || booking.vehicle_name || booking.vehicleName || '').replace(/"/g, '""')}"`,
                     `"${(booking.flight_number || booking.flightNumber || '').replace(/"/g, '""')}"`,
                     booking.price || booking.amount || 0,
                     booking.status || '',
@@ -1978,12 +1995,12 @@
                                 <tr>
                                     <td>${booking.id || ''}</td>
                                     <td>${booking.name || booking.customerName || ''}</td>
-                                    <td>${booking.phone || booking.phoneNumber || ''}</td>
+                                    <td>${booking.phone || booking.phoneNumber || booking.contact_number || booking.contactNumber || ''}</td>
                                     <td>${(function(){ var t=(booking.trip_type||booking.tripType||'').toUpperCase(); var loc=t==='AIRPORT_TO_HOME' ? (booking.dropoff_location||booking.dropoffLocation||'') : (booking.pickup_location||booking.pickupLocation||''); return extractCoords(loc); })()}</td>
                                     <td>${booking.pickup_date || booking.pickupDate || ''}</td>
                                     <td>${booking.pickup_time || booking.pickupTime || booking.timeSlot || ''}</td>
                                     <td>${(booking.trip_type || booking.tripType || '').replace('_', ' ')}</td>
-                                    <td>${booking.vehicle || ''}</td>
+                                    <td>${booking.vehicle || booking.vehicleType || booking.vehicle_name || booking.vehicleName || ''}</td>
                                     <td>${booking.flight_number || booking.flightNumber || ''}</td>
                                     <td>${booking.price || booking.amount || 0}</td>
                                     <td>${booking.status || ''}</td>
