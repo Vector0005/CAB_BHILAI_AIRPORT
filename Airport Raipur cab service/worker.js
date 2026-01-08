@@ -98,6 +98,17 @@ export default {
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
           return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
         }
+        if (pathname === '/api/diagnostics/schema' && method === 'GET') {
+          const r = await supabase('/bookings?select=exact_pickup_time&limit=1', { method: 'GET' }, true);
+          if (r.status === 200) return json({ exactPickupTimeColumn: true });
+          try {
+            const t = await r.text();
+            const missing = /exact_pickup_time/i.test(t) && /column/i.test(t);
+            return json({ exactPickupTimeColumn: !missing });
+          } catch (_) {
+            return json({ exactPickupTimeColumn: false });
+          }
+        }
         if (pathname === '/api/users/login' && method === 'POST') {
           const body = await readBody();
           const email = String(body?.email||'').trim().toLowerCase();
@@ -653,8 +664,23 @@ export default {
               }
             }
           }
-          const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
-          const r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+          const notes = body?.notes || '';
+          const exactFromBody = body?.exactPickupTime || body?.exact_pickup_time || '';
+          const exactFromNotes = ((String(notes).match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i))||[])[1]||'';
+          const flightNumber = body?.flightNumber || body?.flight_number || null;
+          const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null, exact_pickup_time: (exactFromBody || exactFromNotes) || null, notes, flight_number: flightNumber };
+          let r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+          if (!(r.status === 201 || r.status === 200)) {
+            try {
+              const t = await r.text();
+              const missing = /exact_pickup_time/i.test(t) && /column|unknown/i.test(t);
+              if (missing) {
+                const alt = Object.assign({}, payload);
+                delete alt.exact_pickup_time;
+                r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(alt) }, true);
+              }
+            } catch(_) {}
+          }
           // Update availability slot for the booking date
           try {
             const dt = new Date(payload.pickup_date);
