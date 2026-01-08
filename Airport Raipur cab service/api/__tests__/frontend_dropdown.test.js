@@ -12,8 +12,10 @@ describe('AM/PM dropdown and exact time', () => {
   let html, js;
   beforeAll(() => {
     const root = process.cwd();
-    const workerPath = path.join(root, '..', 'Airport Raipur cab service', 'worker.js');
-    const indexPath = path.join(root, '..', 'Airport Raipur cab service', 'index.html');
+    const nestedDir = path.join(root, '..');
+    const topDir = path.join(nestedDir, '..');
+    const workerPath = path.join(topDir, 'worker.js');
+    const indexPath = path.join(nestedDir, 'index.html');
     const workerSrc = fs.readFileSync(workerPath, 'utf-8');
     js = extractFrontendJs(workerSrc);
     html = fs.readFileSync(indexPath, 'utf-8');

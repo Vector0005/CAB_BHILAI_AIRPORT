@@ -11,9 +11,44 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 const sqlPath = path.join(process.cwd(), 'supabase-schema.sql')
 const sql = fs.readFileSync(sqlPath, 'utf8')
 
-const conn = process.env.SUPABASE_DB_URL
+function deriveDbUrlFromEnv() {
+  const urlCandidates = [
+    process.env.SUPABASE_DB_URL,
+    process.env.SUPABASE_URL,
+    process.env.Superbase_URL,
+    process.env.SUPERBASE_URL
+  ]
+  let baseUrl = ''
+  for (const c of urlCandidates) { if (c && String(c).trim()) { baseUrl = String(c).trim(); break } }
+  if (/^postgresql:\/\//i.test(baseUrl)) return baseUrl
+  const pwdCandidates = [
+    process.env.SUPABASE_DB_PASSWORD,
+    process.env.SUPABASE_PASSWORD,
+    process.env.DATABASE_PASSWORD,
+    process.env.Superbase_DB_Password,
+    process.env.SUPERBASE_DB_PASSWORD
+  ]
+  let password = ''
+  for (const p of pwdCandidates) { if (p && String(p).trim()) { password = String(p).trim(); break } }
+  if (!baseUrl) return ''
+  // Expect baseUrl like https://<project-ref>.supabase.co
+  try {
+    const u = new URL(baseUrl)
+    const host = u.host // <project-ref>.supabase.co
+    const ref = host.replace(/\.supabase\.co$/i, '')
+    const dbHost = 'db.' + ref + '.supabase.co'
+    const user = 'postgres'
+    const dbName = 'postgres'
+    const conn = `postgresql://${user}:${encodeURIComponent(password)}@${dbHost}:5432/${dbName}?sslmode=require`
+    return conn
+  } catch (_) {
+    return ''
+  }
+}
+
+const conn = deriveDbUrlFromEnv()
 if (!conn) {
-  console.error('Missing SUPABASE_DB_URL in environment. Get it from Supabase → Settings → Database → Connection string.')
+  console.error('Missing database connection. Set SUPABASE_DB_URL or SUPABASE_URL plus SUPABASE_DB_PASSWORD in environment.')
   process.exit(1)
 }
 

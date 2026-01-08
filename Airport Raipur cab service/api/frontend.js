@@ -1,5 +1,5 @@
 // Enhanced Frontend Script with Backend API Integration
-class AirportBookingSystem {
+window.AirportBookingSystem = window.AirportBookingSystem || class AirportBookingSystem {
     constructor() {
         this.API_BASE_URL = `${window.location.origin}/api`;
         this.currentDate = new Date();
@@ -728,6 +728,17 @@ class AirportBookingSystem {
             const pickupLocation = tripEnum === 'HOME_TO_AIRPORT' ? userAddress : 'Airport';
             const dropoffLocation = tripEnum === 'HOME_TO_AIRPORT' ? 'Airport' : userAddress;
 
+            const hRaw = document.getElementById('manualHour')?.value;
+            const mRaw = document.getElementById('manualMinute')?.value;
+            const apRaw = document.getElementById('manualAmPm')?.value;
+            const h = parseInt(hRaw || '', 10);
+            const m = parseInt(mRaw || '', 10);
+            const ap = String(apRaw || '').toUpperCase();
+            let exactPickupTime = null;
+            if (isFinite(h) && h >= 1 && h <= 12 && isFinite(m) && m >= 0 && m <= 59 && (ap === 'AM' || ap === 'PM')) {
+                exactPickupTime = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ap}`;
+            }
+
             const payload = {
                 name: this.bookingData.customerName,
                 phone: this.bookingData.phoneNumber,
@@ -737,8 +748,9 @@ class AirportBookingSystem {
                 pickupTime: this.bookingData.timeSlot,
                 tripType: tripEnum,
                 price: this.calculateAmount(),
-                notes: ''
+                notes: exactPickupTime ? `Exact pickup time: ${exactPickupTime}` : ''
             };
+            if (exactPickupTime) payload.exactPickupTime = exactPickupTime;
             if (this.bookingData.vehicleId) payload.vehicleId = this.bookingData.vehicleId;
             if (this.bookingData.vehicleName) payload.vehicleName = this.bookingData.vehicleName;
             if (this.bookingData.vehicleRate) payload.vehicleRate = this.bookingData.vehicleRate;
@@ -848,7 +860,8 @@ class AirportBookingSystem {
             bookButton.textContent = 'Book Ride';
         }
     }
-}
+};
+var AirportBookingSystem = window.AirportBookingSystem;
 
 // Initialize once, whether DOM is already loaded or not
 if (!window.__AirportBookingSystemInit) {

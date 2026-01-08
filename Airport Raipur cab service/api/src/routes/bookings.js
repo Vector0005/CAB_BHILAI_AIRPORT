@@ -103,6 +103,8 @@ router.post('/', [
     price,
     notes
   } = req.body;
+  const exactPickupTime = req.body.exactPickupTime || req.body.exact_pickup_time || null;
+  const notesWithExact = exactPickupTime ? (((notes ? String(notes) : '') + (notes ? '\n' : '')) + `Exact pickup time: ${String(exactPickupTime)}`) : notes;
   const promoCodeRaw = req.body.promoCode || req.body.promo_code || null;
   const vehicleId = req.body.vehicleId || req.body.vehicle_id || null;
   const vehicleName = req.body.vehicleName || req.body.vehicle_name || null;
@@ -181,9 +183,10 @@ router.post('/', [
     dropoff_location: dropoffLocation,
     pickup_date: searchDate.toISOString(),
     pickup_time: pickupTime,
+    exact_pickup_time: exactPickupTime,
     trip_type: tripType,
     price,
-    notes,
+    notes: notesWithExact,
     vehicle_id: vehicleId,
     vehicle_name: vehicleName,
     vehicle_rate: vehicleRate,
@@ -224,8 +227,20 @@ router.post('/', [
     let booking
     const client2 = getSupabaseClient(true)
     if (client2) {
-      const { data: bookingRows, error: insertErr } = await client2.from('bookings').insert(insertPayload).select('*')
-      if (insertErr) throw insertErr
+      let bookingRows, insertErr
+      ({ data: bookingRows, error: insertErr } = await client2.from('bookings').insert(insertPayload).select('*'))
+      if (insertErr) {
+        const msg = String(insertErr?.message || '')
+        if (/exact_pickup_time/i.test(msg) && /column/i.test(msg)) {
+          const fallbackPayload = Object.assign({}, insertPayload)
+          delete fallbackPayload.exact_pickup_time
+          const { data: rows2, error: err2 } = await client2.from('bookings').insert(fallbackPayload).select('*')
+          if (err2) throw err2
+          bookingRows = rows2
+        } else {
+          throw insertErr
+        }
+      }
       booking = bookingRows[0]
     } else {
       booking = await prisma.booking.create({
@@ -239,9 +254,10 @@ router.post('/', [
           dropoffLocation,
           pickupDate: new Date(pickupDate),
           pickupTime,
+          exactPickupTime,
           tripType,
           price,
-          notes,
+          notes: notesWithExact,
           status: 'PENDING',
           paymentStatus: 'PENDING'
         }

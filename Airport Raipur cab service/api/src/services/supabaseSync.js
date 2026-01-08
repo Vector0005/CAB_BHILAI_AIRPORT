@@ -15,6 +15,7 @@ export async function syncBookingToSupabase(booking) {
     dropoff_location: booking.dropoffLocation,
     pickup_date: booking.pickupDate,
     pickup_time: booking.pickupTime,
+    exact_pickup_time: booking.exactPickupTime,
     trip_type: booking.tripType,
     status: booking.status,
     price: booking.price,

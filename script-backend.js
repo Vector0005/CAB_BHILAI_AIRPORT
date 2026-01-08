@@ -48,7 +48,13 @@
       var dateSel=(window.selectedPickupDate && String(window.selectedPickupDate).length>=8)?window.selectedPickupDate:(y+'-'+m+'-'+d);
       var pickupLocation=(tripType==='HOME_TO_AIRPORT')?loc:'Airport';
       var dropoffLocation=(tripType==='AIRPORT_TO_HOME')?loc:'Airport';
+      var hRaw=(document.getElementById('manualHour')||{}).value; var mRaw=(document.getElementById('manualMinute')||{}).value; var apRaw=(document.getElementById('manualAmPm')||{}).value;
+      var h=parseInt(hRaw||'',10), m=parseInt(mRaw||'',10), ap=String(apRaw||'AM').toUpperCase();
+      var exact=null; if(isFinite(h)&&h>=1&&h<=12 && isFinite(m)&&m>=0&&m<=59 && (ap==='AM'||ap==='PM')){ exact=((''+h).padStart(2,'0'))+':' + ((''+m).padStart(2,'0')) + ' ' + ap; }
       var payload={ name:name, phone:phone, pickupLocation:pickupLocation, dropoffLocation:dropoffLocation, pickupDate:dateSel, pickupTime:pickupTime||'morning', tripType:tripType||'HOME_TO_AIRPORT', price:0 };
+      if(exact){ payload.exactPickupTime=exact; payload.notes='Exact pickup time: '+exact; }
+      var fl=(document.getElementById('flightNumber')||{}).value; if(fl){ payload.flightNumber=fl; }
+      try{ if(typeof selectedVehicle==='object' && selectedVehicle){ payload.vehicleId=selectedVehicle.id; payload.vehicleName=selectedVehicle.name; var shownRate=(selectedVehicle.discounted_rate!=null && isFinite(selectedVehicle.discounted_rate))?Number(selectedVehicle.discounted_rate):Number(selectedVehicle.rate||0); if(isFinite(shownRate)) payload.vehicleRate=shownRate; } }catch(_){ }
       try{
         if(typeof window.fetch!=='function'){ setNotice('Booking failed: network unsupported', false); return; }
         window.fetch('/api/bookings', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload) })

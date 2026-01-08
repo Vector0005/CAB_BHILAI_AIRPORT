@@ -797,6 +797,7 @@
                                     <th>Customer Name</th>
                                     <th>Pickup Date</th>
                                     <th>Time</th>
+                                    <th>Exact Time</th>
                                     <th>Location</th>
                                     <th>Trip Type</th>
                                     <th>Status</th>
@@ -806,7 +807,7 @@
                             </thead>
                             <tbody id="recentBookingsBody">
                                 <tr>
-                                    <td colspan="9" class="loading">Loading upcoming trips...</td>
+                                    <td colspan="10" class="loading">Loading upcoming trips...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -840,6 +841,7 @@
                                     <th>Customer</th>
                                     <th>Pickup Date</th>
                                     <th>Time</th>
+                                    <th>Exact Time</th>
                                     <th>Trip Type</th>
                                     <th>Location</th>
                                     <th>Flight Number</th>
@@ -850,7 +852,7 @@
                             </thead>
                             <tbody id="bookingsTableBody">
                                 <tr>
-                                    <td colspan="10" class="loading">Loading bookings...</td>
+                                    <td colspan="11" class="loading">Loading bookings...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -1258,6 +1260,7 @@
                         var rows=upcoming.map(function(b){
                             var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                             var timeText=b.pickup_time||'';
+                            var exactText = (b.exact_pickup_time||((b.notes||'').match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i)||[])[1]||'');
                             var trip=(b.trip_type||b.tripType||'').toUpperCase();
                             var loc = trip==='AIRPORT_TO_HOME' ? (b.dropoff_location||b.dropoffLocation||'') : (b.pickup_location||b.pickupLocation||'');
                             var status=(b.status||'').toLowerCase();
@@ -1266,6 +1269,7 @@
                                '<td>'+(b.name||b.customerName||'')+'</td>'+
                                '<td>'+dateText+'</td>'+
                                '<td>'+timeText+'</td>'+
+                               '<td>'+exactText+'</td>'+
                                '<td>'+extractCoords(loc)+'</td>'+
                                '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
@@ -1296,6 +1300,7 @@
                             var rows=upcoming.map(function(b){
                                 var dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                                 var timeText=b.pickup_time||'';
+                                var exactText = (b.exact_pickup_time||((b.notes||'').match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i)||[])[1]||'');
                                 var trip=(b.trip_type||b.tripType||'').toUpperCase();
                                 var loc = trip==='AIRPORT_TO_HOME' ? (b.dropoff_location||b.dropoffLocation||'') : (b.pickup_location||b.pickupLocation||'');
                                 var status=(b.status||'').toLowerCase();
@@ -1304,6 +1309,7 @@
                                    '<td>'+(b.name||b.customerName||'')+'</td>'+
                                    '<td>'+dateText+'</td>'+
                                    '<td>'+timeText+'</td>'+
+                                   '<td>'+exactText+'</td>'+
                                    '<td>'+extractCoords(loc)+'</td>'+
                                    '<td>'+((b.trip_type||b.tripType||'').replace('_',' '))+'</td>'+
                                    '<td><span class="status-badge status-'+status+'">'+status+'</span></td>'+
@@ -1387,7 +1393,7 @@
                 if(!tbody) return;
                 
                 if (filteredRows.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="10" class="loading">No bookings found</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="11" class="loading">No bookings found</td></tr>';
                     return;
                 }
                 
@@ -1395,6 +1401,7 @@
                     const status=(b.status||'').toLowerCase();
                     const dateText=b.pickup_date?new Date(b.pickup_date).toLocaleDateString():'';
                     const timeText=b.pickup_time||'';
+                    const exactText=(b.exact_pickup_time||((b.notes||'').match(/Exact\s+pickup\s+time:\s*([0-9]{1,2}:[0-9]{2}\s*[AP]M)/i)||[])[1]||'');
                     var actions='\n<div class="action-buttons">'+
                       '<button class="btn btn-sm btn-primary view-booking" data-id="'+b.id+'">View</button>';
                     if (status==='pending') { actions+=
@@ -1407,6 +1414,7 @@
                     '<td>'+(b.name||'')+'</td>'+
                     '<td>'+dateText+'</td>'+
                     '<td>'+timeText+'</td>'+
+                    '<td>'+exactText+'</td>'+
                     '<td>'+((b.trip_type||'').replace('_',' '))+'</td>'+
                     '<td>'+extractCoords(((b.trip_type||'').toUpperCase()==='AIRPORT_TO_HOME' ? (b.dropoff_location||'') : (b.pickup_location||'')))+'</td>'+
                     '<td>'+(b.flight_number||'')+'</td>'+

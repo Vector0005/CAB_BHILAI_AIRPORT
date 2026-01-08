@@ -18,6 +18,17 @@ export default {
           headers.set('apikey', key);
           headers.set('Authorization', 'Bearer ' + key);
           if (init.body && !headers.has('content-type')) headers.set('content-type', 'application/json');
+          try {
+            const m = String((init && init.method) || 'GET').toUpperCase();
+            if (/^\/bookings(\?.*)?$/i.test(String(path||'')) && m === 'POST' && init && init.body) {
+              const obj = JSON.parse(init.body);
+              if (!obj.notes) {
+                const ext = obj.exact_pickup_time || obj.exactPickupTime || '';
+                obj.notes = ext ? ('Exact Pickup Time: ' + ext) : '';
+                init.body = JSON.stringify(obj);
+              }
+            }
+          } catch (_) {}
           const resp = await fetch(u, { ...init, headers });
           const body = await resp.text();
           const h = {};
@@ -61,6 +72,17 @@ export default {
         };
         if (pathname === '/api/diagnostics/env' && method === 'GET') {
           return json({ supabaseUrlPresent: !!sbBase, anonKeyPresent: !!anonKey, serviceKeyPresent: !!serviceKey, apiBaseUrl: proxyBase, adminEmailPresent: !!env.ADMIN_EMAIL, adminPasswordPresent: !!(env.ADMIN_PASSWORD||env.ADMIN_NEW_PASSWORD), jwtSecretPresent: !!env.JWT_SECRET });
+        }
+        if (pathname === '/api/diagnostics/schema' && method === 'GET') {
+          const r = await supabase('/bookings?select=exact_pickup_time&limit=1', { method: 'GET' }, true);
+          if (r.status === 200) return json({ exactPickupTimeColumn: true });
+          try {
+            const t = await r.text();
+            const missing = /exact_pickup_time/i.test(t) && /column/i.test(t);
+            return json({ exactPickupTimeColumn: !missing });
+          } catch (_) {
+            return json({ exactPickupTimeColumn: false });
+          }
         }
         if (pathname === '/api/users/login' && method === 'POST') {
           const body = await readBody();
@@ -574,8 +596,30 @@ export default {
               }
             }
           }
-          const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null };
+          const payload = { id, booking_number: bn, user_id: userId, name, phone, email, pickup_location: body?.pickupLocation || '', dropoff_location: body?.dropoffLocation || '', pickup_date: toISO(body?.pickupDate), pickup_time: body?.pickupTime || body?.timeSlot || '', trip_type: body?.tripType || '', status: 'PENDING', price: body?.price || 0, vehicle_id: body?.vehicleId || null, vehicle_name: body?.vehicleName || null, vehicle_rate: body?.vehicleRate || null, notes: (body?.notes || (body?.exactPickupTime ? ('Exact Pickup Time: ' + body.exactPickupTime) : '')) };
+          if (body?.notes) { payload.notes = String(body.notes); }
+          if (body?.exactPickupTime || body?.exact_pickup_time) { payload.exact_pickup_time = body.exactPickupTime || body.exact_pickup_time; }
+          if (body?.notes) { payload.notes = String(body.notes); }
+          if (body?.exactPickupTime || body?.exact_pickup_time) { payload.exact_pickup_time = body.exactPickupTime || body.exact_pickup_time; }
           const r = await supabase('/bookings', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(payload) }, true);
+          try {
+            const update = {};
+            if (body && body.notes) update.notes = String(body.notes);
+            const exact = body && (body.exactPickupTime || body.exact_pickup_time) ? (body.exactPickupTime || body.exact_pickup_time) : '';
+            if (exact) update.exact_pickup_time = exact;
+            if (Object.keys(update).length) {
+              let ur = await supabase('/bookings?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
+              if (ur.status !== 200) {
+                try {
+                  const t = await ur.text();
+                  if (/exact_pickup_time/i.test(t) && /column/i.test(t)) {
+                    delete update.exact_pickup_time;
+                    await supabase('/bookings?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(update) }, true);
+                  }
+                } catch(_) {}
+              }
+            }
+          } catch(_) {}
           // Update availability slot for the booking date
           try {
             const dt = new Date(payload.pickup_date);

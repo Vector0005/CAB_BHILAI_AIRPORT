@@ -49,6 +49,7 @@ model Booking {
   dropoffLocation String
   pickupDate      DateTime
   pickupTime      String   // "morning" or "evening"
+  exactPickupTime String?
   tripType        TripType // "HOME_TO_AIRPORT" or "AIRPORT_TO_HOME"
   status          BookingStatus @default(PENDING)
   price           Float
